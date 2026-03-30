@@ -88,7 +88,7 @@ else
     {
         Rules = await RuleService.GetAll();
 
-        // Sikrer render, også hvis callback kommer fra en child-component
+        // Sikrer render
         await InvokeAsync(StateHasChanged);
     }
 

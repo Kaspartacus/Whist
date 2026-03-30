@@ -29,7 +29,6 @@ builder.Services.AddBlazoredLocalStorage();
 // ------------------------------------------------------------
 // HttpClient (API base address)
 // OBS: Dette er hardcoded til localhost (dev).
-// Ved deploy bør du typisk skifte til config eller HostEnvironment.
 // ------------------------------------------------------------
 builder.Services.AddScoped(_ =>
     new HttpClient

@@ -53,9 +53,7 @@ public class RuleController : ControllerBase
             return BadRequest("Regeltekst mangler.");
 
         var added = await _repo.Add(rule);
-
-        // Bemærk: CreatedAtAction peger på GetAll (som ikke returnerer en enkelt rule),
-        // men vi bevarer adfærden som den er i din nuværende kode.
+        
         return CreatedAtAction(nameof(GetAll), new { id = added.Id }, added);
     }
 
