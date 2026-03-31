@@ -91,6 +91,7 @@
                 @bind="NewNote"
                 @bind:event="oninput"
                 @onkeydown="OnNoteKeyDown"
+                @onkeydown:stopPropagation="true"
                 placeholder="Skriv note eller begivenhed her..."></textarea>
 
             
@@ -138,10 +139,10 @@
                     {
                         <tr>
                             <td>@evt.Key.ToString("dd.MM.yyyy")</td>
-                            <td>@evt.Value</td>
+                            <td class="event-note-cell">@evt.Value</td>
                             @if (CurrentUser is not null)
                             {
-                                <td>
+                                <td class="event-actions-cell">
                                     <button class="icon-button blue" @onclick="() => EditEvent(evt.Key)">✏️</button>
                                     <button class="icon-button red" @onclick="() => RequestDelete(evt.Key)">🗑️</button>
                                 </td>
@@ -151,13 +152,11 @@
                     </tbody>
                 </table>
 
-                @if (EventDates.Count(e => e.Key < DateTime.Today) > 3)
+                @if (PastTotalPages > 1)
                 {
-                    <div style="text-align: right; margin-top: 0.5rem;">
-                        <button class="btn-more" @onclick="ToggleShowAllPastEvents">
-                            @(ShowAllPastEvents ? "Vis færre" : "Vis alle")
-                        </button>
-                    </div>
+                    <PaginationComponent CurrentPage="PastCurrentPage"
+                                         TotalPages="PastTotalPages"
+                                         OnPageChanged="LoadPastPage" />
                 }
             }
             else
@@ -189,10 +188,10 @@
                     {
                         <tr>
                             <td>@evt.Key.ToString("dd.MM.yyyy")</td>
-                            <td>@evt.Value</td>
+                            <td class="event-note-cell">@evt.Value</td>
                             @if (CurrentUser is not null)
                             {
-                                <td>
+                                <td class="event-actions-cell">
                                     <button class="icon-button blue" @onclick="() => EditEvent(evt.Key)">✏️</button>
                                     <button class="icon-button red" @onclick="() => RequestDelete(evt.Key)">🗑️</button>
                                 </td>
@@ -202,13 +201,11 @@
                     </tbody>
                 </table>
 
-                @if (EventDates.Count(e => e.Key >= DateTime.Today) > 3)
+                @if (UpcomingTotalPages > 1)
                 {
-                    <div style="text-align: right; margin-top: 0.5rem;">
-                        <button class="btn-more" @onclick="ToggleShowAllUpcomingEvents">
-                            @(ShowAllUpcomingEvents ? "Vis færre" : "Vis alle")
-                        </button>
-                    </div>
+                    <PaginationComponent CurrentPage="UpcomingCurrentPage"
+                                         TotalPages="UpcomingTotalPages"
+                                         OnPageChanged="LoadUpcomingPage" />
                 }
             }
             else
@@ -262,9 +259,10 @@
     private int currentYear = DateTime.Today.Year;
     private int currentMonth = DateTime.Today.Month;
 
-    // Vis alle / vis top 3 i tabeller
-    private bool ShowAllPastEvents = false;
-    private bool ShowAllUpcomingEvents = false;
+    // Simpel pagination for tidligere og kommende begivenheder
+    private int PastCurrentPage = 1;
+    private int UpcomingCurrentPage = 1;
+    private const int EventsPageSize = 5;
 
     // ------------------------------------------------------------
     // Computed properties (visning)
@@ -308,15 +306,26 @@
     // +/- 5 år tilbage, og mange år frem
     private List<int> YearRange = Enumerable.Range(DateTime.Today.Year - 5, 56).ToList();
 
+    private IEnumerable<KeyValuePair<DateTime, string>> AllUpcomingEvents =>
+        EventDates.Where(e => e.Key >= DateTime.Today).OrderBy(e => e.Key);
+
+    private IEnumerable<KeyValuePair<DateTime, string>> AllPastEvents =>
+        EventDates.Where(e => e.Key < DateTime.Today).OrderByDescending(e => e.Key);
+
+    private int UpcomingTotalCount => AllUpcomingEvents.Count();
+    private int PastTotalCount => AllPastEvents.Count();
+    private int UpcomingTotalPages => (int)Math.Ceiling((double)UpcomingTotalCount / EventsPageSize);
+    private int PastTotalPages => (int)Math.Ceiling((double)PastTotalCount / EventsPageSize);
+
     private IEnumerable<KeyValuePair<DateTime, string>> UpcomingEvents =>
-        ShowAllUpcomingEvents
-            ? EventDates.Where(e => e.Key >= DateTime.Today).OrderBy(e => e.Key)
-            : EventDates.Where(e => e.Key >= DateTime.Today).OrderBy(e => e.Key).Take(3);
+        AllUpcomingEvents
+            .Skip((UpcomingCurrentPage - 1) * EventsPageSize)
+            .Take(EventsPageSize);
 
     private IEnumerable<KeyValuePair<DateTime, string>> PastEvents =>
-        ShowAllPastEvents
-            ? EventDates.Where(e => e.Key < DateTime.Today).OrderByDescending(e => e.Key)
-            : EventDates.Where(e => e.Key < DateTime.Today).OrderByDescending(e => e.Key).Take(3);
+        AllPastEvents
+            .Skip((PastCurrentPage - 1) * EventsPageSize)
+            .Take(EventsPageSize);
 
     // ------------------------------------------------------------
     // Lifecycle
@@ -341,6 +350,10 @@
         EventDates = allEvents
             .GroupBy(e => e.Date.ToLocalTime().Date)
             .ToDictionary(g => g.Key, g => g.First().Note);
+
+        // Holder pagination på gyldige sider efter ændringer
+        PastCurrentPage = NormalizePage(PastCurrentPage, PastTotalPages);
+        UpcomingCurrentPage = NormalizePage(UpcomingCurrentPage, UpcomingTotalPages);
         
         _shouldFocusConfirmButton = true;
         
@@ -481,13 +494,28 @@
         dateToDelete = default;
     }
 
-    // ------------------------------------------------------------
-    // Vis alle / vis færre i tabeller
-    // ------------------------------------------------------------
+    private Task LoadPastPage(int page)
+    {
+        PastCurrentPage = NormalizePage(page, PastTotalPages);
+        return Task.CompletedTask;
+    }
 
-    private void ToggleShowAllPastEvents() => ShowAllPastEvents = !ShowAllPastEvents;
+    private Task LoadUpcomingPage(int page)
+    {
+        UpcomingCurrentPage = NormalizePage(page, UpcomingTotalPages);
+        return Task.CompletedTask;
+    }
 
-    private void ToggleShowAllUpcomingEvents() => ShowAllUpcomingEvents = !ShowAllUpcomingEvents;
+    private static int NormalizePage(int page, int totalPages)
+    {
+        if (totalPages <= 0)
+            return 1;
+
+        if (page < 1)
+            return 1;
+
+        return page > totalPages ? totalPages : page;
+    }
     
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -528,14 +556,16 @@
             return;
         }
         
+        if (e.Key == "Enter" && e.ShiftKey)
+        {
+            // Shift+Enter skal lave linjeskift uden at gemme
+            return;
+        }
+
         if (e.Key == "Enter")
         {
             // Ellers: Enter = gem/confirm
             await OnEnter();
-            
-            // Hvis du vil tillade ny linje, så brug fx Shift+Enter til newline:
-            if (e.ShiftKey)
-                return; // lad browseren lave newline
         }
     }
     

@@ -40,7 +40,9 @@
                       maxlength="500"
                       placeholder="Skriv reglen her..."
                       @bind-value="RuleText"
-                      @bind-value:event="oninput"></textarea>
+                      @bind-value:event="oninput"
+                      @onkeydown="HandleRuleTextKeyDown"
+                      @onkeydown:stopPropagation="true"></textarea>
 
             @* Valideringsfejl (vises kun hvis den er sat) *@
             @if (!string.IsNullOrWhiteSpace(ValidationErrorMessage))
@@ -205,6 +207,24 @@
         else if (e.Key == "Escape")
             await OnEscape();
     }
+
+    private async Task HandleRuleTextKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnEscape();
+            return;
+        }
+
+        if (e.Key == "Enter" && e.ShiftKey)
+        {
+            // Shift+Enter skal lave linjeskift uden at gemme
+            return;
+        }
+
+        if (e.Key == "Enter")
+            await OnEnter();
+    }
     
     // =========================
     // Actions
@@ -212,8 +232,3 @@
     private Task OnEnter() => Submit();
     private Task OnEscape() { Close(); return Task.CompletedTask; }
 }
-
-linje:
-25
-182
-198

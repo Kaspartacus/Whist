@@ -224,6 +224,12 @@
     color: #333;
 }
 
+.fine-comment-cell {
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
 /* =========================
    Filter UI
    ========================= */

@@ -121,7 +121,7 @@
     color: #4b5563;
     margin: 0.5rem 0;
     word-break: break-word;
-    white-space: normal;
+    white-space: pre-line;
 }
 
 .highlight-footer {

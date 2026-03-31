@@ -19,6 +19,15 @@
 
 <h3 class="whist-point-title">Whist Point Skema</h3>
 
+<ConfirmDeleteComponent @ref="confirmAddFinesComponent"
+                        OnConfirm="ConfirmAddFines"
+                        OnCancel="CancelAddFines"
+                        Message="Er du sikker på at du vil tilføje disse bøder?"
+                        ConfirmButtonText="Tilføj bøder"
+                        CancelButtonText="Annuller"
+                        ConfirmButtonClass="confirm-btn-green"
+                        CancelButtonClass="cancel-btn-red" />
+
 @* Hovedskema: rækker = meldinger/labels, kolonner = niveauer (Columns) *@
 <div class="table-scroll">
     <table class="point-table">
@@ -88,7 +97,7 @@
             @* Kun logget-in bruger kan “tilføje bøder” ud fra point *@
             @if (_currentUser is not null)
             {
-                <button class="btn-add" @onclick="ResetPointsAndCreateFines">+ Tilføj bøder</button>
+                <button class="btn-add" @onclick="ShowAddFinesConfirmation">+ Tilføj bøder</button>
             }
         </div>
 
@@ -184,6 +193,7 @@
     private bool IsModalOpen;
     private int SelectedPoint;
     private List<SelectPlayersComponent.SelectableUser> Players = new();
+    private ConfirmDeleteComponent? confirmAddFinesComponent;
 
     // ------------------------------------------------------------
     // Lifecycle
@@ -428,6 +438,23 @@
     // ------------------------------------------------------------
     // “Tilføj bøder”: konverter point (minus) + stjerner → fines, og reset
     // ------------------------------------------------------------
+
+    private void ShowAddFinesConfirmation()
+    {
+        // Viser bekræftelse før bøder tilføjes
+        confirmAddFinesComponent?.Show();
+    }
+
+    private async Task ConfirmAddFines()
+    {
+        await ResetPointsAndCreateFines();
+    }
+
+    private Task CancelAddFines()
+    {
+        // Annuller gør ingen ændringer
+        return Task.CompletedTask;
+    }
 
     private async Task ResetPointsAndCreateFines()
     {

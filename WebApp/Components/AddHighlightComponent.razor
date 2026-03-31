@@ -29,7 +29,9 @@
                       placeholder="Beskrivelse"
                       maxlength="400"
                       @bind-value="Description"
-                      @bind-value:event="oninput"></textarea>
+                      @bind-value:event="oninput"
+                      @onkeydown="HandleDescriptionKeyDown"
+                      @onkeydown:stopPropagation="true"></textarea>
 
             @* Upload billede (gemmer fil i wwwroot/uploads via UploadController og får en URL retur) *@
             <label for="file-upload" class="custom-file-label">📷 Vedhæft billede</label>
@@ -289,6 +291,24 @@
         // Escape => annuller/luk
         else if (e.Key == "Escape")
             await OnEscape();
+    }
+
+    private async Task HandleDescriptionKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnEscape();
+            return;
+        }
+
+        if (e.Key == "Enter" && e.ShiftKey)
+        {
+            // Shift+Enter skal lave linjeskift uden at gemme
+            return;
+        }
+
+        if (e.Key == "Enter")
+            await OnEnter();
     }
     
     // =========================

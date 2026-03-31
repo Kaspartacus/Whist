@@ -43,12 +43,13 @@
                    @bind-value:event="oninput" />
 
             <label class="modal-label">Kommentar</label>
-            <input type="text"
-                   class="modal-input"
-                   placeholder="Kommentar"
-                   maxlength="400"
-                   @bind-value="Comment"
-                   @bind-value:event="oninput" />
+            <textarea class="modal-textarea"
+                      placeholder="Kommentar"
+                      maxlength="400"
+                      @bind-value="Comment"
+                      @bind-value:event="oninput"
+                      @onkeydown="HandleCommentKeyDown"
+                      @onkeydown:stopPropagation="true"></textarea>
 
             @* Fejlbesked fra validering *@
             @if (!string.IsNullOrWhiteSpace(ValidationErrorMessage))
@@ -254,6 +255,24 @@
         // Escape => annuller/luk
         else if (e.Key == "Escape")
             await OnEscape();
+    }
+
+    private async Task HandleCommentKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnEscape();
+            return;
+        }
+
+        if (e.Key == "Enter" && e.ShiftKey)
+        {
+            // Shift+Enter skal lave linjeskift uden at gemme
+            return;
+        }
+
+        if (e.Key == "Enter")
+            await OnEnter();
     }
     
     // =========================

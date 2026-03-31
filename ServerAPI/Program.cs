@@ -35,7 +35,7 @@ builder.Services
 
 
 
-// Authorization er slået til (men kræver stadig at du har auth + policies for at gøre noget reelt)
+// Authorization er slået til
 builder.Services.AddAuthorization();
 
 // Background worker (mail reminders)

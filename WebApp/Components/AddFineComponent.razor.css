@@ -57,7 +57,28 @@
     transition: border-color 0.2s;
 }
 
+.modal-textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.modal-input,
+.modal-textarea {
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 1rem;
+    width: 100%;
+    background-color: #f9f9f9;
+    transition: border-color 0.2s;
+}
+
 .modal-input:focus {
+    border-color: #5b3cc4;
+    outline: none;
+}
+
+.modal-textarea:focus {
     border-color: #5b3cc4;
     outline: none;
 }
