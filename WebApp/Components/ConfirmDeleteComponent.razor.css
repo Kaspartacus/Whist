@@ -64,6 +64,15 @@
     background-color: #cc2e2b;
 }
 
+.modal-actions .confirm-btn-green {
+    background-color: #2e7d32;
+    color: white;
+}
+
+.modal-actions .confirm-btn-green:hover {
+    background-color: #256628;
+}
+
 /* Cancel (Nej) */
 .modal-actions .cancel-btn {
     background-color: #f3f3f3;
@@ -72,6 +81,15 @@
 
 .modal-actions .cancel-btn:hover {
     background-color: #e0e0e0;
+}
+
+.modal-actions .cancel-btn-red {
+    background-color: #e53935;
+    color: white;
+}
+
+.modal-actions .cancel-btn-red:hover {
+    background-color: #cc2e2b;
 }
 
 /* Lille hint til keyboard */

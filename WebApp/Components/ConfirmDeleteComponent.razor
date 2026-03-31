@@ -32,15 +32,15 @@
                 @* "Ja" (Confirm)
                    @ref bruges til at fokusere knappen når modalen åbner *@
                 <button @ref="ConfirmButtonRef"
-                        class="confirm-btn"
+                        class="@ConfirmButtonClass"
                         @onclick="Confirm">
-                    Ja
+                    @ConfirmButtonText
                 </button>
 
                 @* "Nej" (Cancel) *@
-                <button class="cancel-btn"
+                <button class="@CancelButtonClass"
                         @onclick="Cancel">
-                    Nej
+                    @CancelButtonText
                 </button>
             </div>
         </div>
@@ -60,6 +60,18 @@
 
     /// <summary>Tekst i modalen.</summary>
     [Parameter] public string Message { get; set; } = "Er du sikker på at du vil slette dette?";
+
+    /// <summary>Tekst til bekræft-knappen.</summary>
+    [Parameter] public string ConfirmButtonText { get; set; } = "Ja";
+
+    /// <summary>Tekst til annuller-knappen.</summary>
+    [Parameter] public string CancelButtonText { get; set; } = "Nej";
+
+    /// <summary>CSS-klasse til bekræft-knappen.</summary>
+    [Parameter] public string ConfirmButtonClass { get; set; } = "confirm-btn";
+
+    /// <summary>CSS-klasse til annuller-knappen.</summary>
+    [Parameter] public string CancelButtonClass { get; set; } = "cancel-btn";
 
     // =========================
     // State

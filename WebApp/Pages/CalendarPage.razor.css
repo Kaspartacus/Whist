@@ -109,6 +109,7 @@
     padding: 4px;
     background: #fdfdfd;
     position: relative;
+    overflow: hidden;
     cursor: pointer;
     border-radius: 5px;
 }
@@ -133,6 +134,11 @@
     font-size: 0.8rem;
     color: #007BFF;
     margin-top: 0.3rem;
+    max-width: 100%;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: pre-line;
 }
 
 /* ------------------------------------------------------------
@@ -266,6 +272,19 @@
 .fine-table th {
     font-weight: 600;
     color: #555;
+}
+
+.event-note-cell {
+    /* Sørger for at teksten ikke rammer handlingsknapperne */
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: pre-line;
+}
+
+.event-actions-cell {
+    width: 88px;
+    white-space: nowrap;
+    text-align: right;
 }
 
 .fine-table td:last-child {

@@ -76,13 +76,17 @@
                       minlength="8"
                       maxlength="500"
                       @bind-value="Description"
-                      @bind-value:event="oninput"></textarea>
+                      @bind-value:event="oninput"
+                      @onkeydown="HandleDescriptionKeyDown"
+                      @onkeydown:stopPropagation="true"></textarea>
 
-            <input class="modal-input"
-                   placeholder="Fun fact"
-                   maxlength="200"
-                   @bind-value="FunFact"
-                   @bind-value:event="oninput" />
+            <textarea class="modal-textarea"
+                      placeholder="Fun fact"
+                      maxlength="200"
+                      @bind-value="FunFact"
+                      @bind-value:event="oninput"
+                      @onkeydown="HandleFunFactKeyDown"
+                      @onkeydown:stopPropagation="true"></textarea>
 
             @* Fødselsdato:
                - Bruger InputDate for korrekt binding
@@ -415,6 +419,42 @@
         // Escape => annuller/luk
         else if (e.Key == "Escape")
             await OnEscape();
+    }
+
+    private async Task HandleDescriptionKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnEscape();
+            return;
+        }
+
+        if (e.Key == "Enter" && e.ShiftKey)
+        {
+            // Shift+Enter skal lave linjeskift uden at gemme
+            return;
+        }
+
+        if (e.Key == "Enter")
+            await OnEnter();
+    }
+
+    private async Task HandleFunFactKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnEscape();
+            return;
+        }
+
+        if (e.Key == "Enter" && e.ShiftKey)
+        {
+            // Shift+Enter skal lave linjeskift uden at gemme
+            return;
+        }
+
+        if (e.Key == "Enter")
+            await OnEnter();
     }
     
     // =========================
