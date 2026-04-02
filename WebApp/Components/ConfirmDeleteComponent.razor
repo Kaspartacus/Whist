@@ -20,7 +20,8 @@
        Vi bruger @onkeydown på overlay, så tastatur virker uanset hvor fokus er. *@
     <div class="modal-overlay"
          tabindex="0"
-         @onkeydown="HandleKeyDown">
+         @onkeydown="HandleKeyDown"
+         @onclick="Cancel">
 
         @* Selve modal boksen *@
         <div class="modal-box" @onclick:stopPropagation="true">

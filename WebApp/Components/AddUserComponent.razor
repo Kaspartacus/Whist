@@ -93,22 +93,27 @@
                - BirthDate er DateOnly? *@
             <div class="modal-field">
                 <label class="modal-label">Fødselsdato</label>
-                <InputDate @bind-Value="BirthDate" class="modal-input" />
-            </div>
-
-            @* Billede upload:
-               - Skjuler standard InputFile og bruger en “lilla knap” label
-               - Når der vælges fil, uploader vi straks og gemmer URL som ImagePreview *@
-            <label for="file-upload" class="custom-file-label">📷 Vedhæft billede</label>
-            <div class="file-input-wrapper">
-                <InputFile id="file-upload" OnChange="HandleImageUpload" accept="image/*" />
+                <InputDate @bind-Value="BirthDate" class="modal-input modal-date-input" />
             </div>
 
             @* Preview af uploaded/eksisterende billede *@
             @if (!string.IsNullOrEmpty(ImagePreview))
             {
-                <img src="@ImagePreview" alt="Preview" class="modal-image-preview" />
+                <div class="image-upload-section">
+                    <img src="@ImagePreview" alt="Preview" class="modal-image-preview" />
+                    <label for="file-upload" class="custom-file-label custom-file-label--subtle">Skift billede</label>
+                </div>
             }
+            else
+            {
+                <div class="image-upload-section">
+                    <label for="file-upload" class="custom-file-label custom-file-label--subtle">📷 Vedhæft billede</label>
+                </div>
+            }
+
+            <div class="file-input-wrapper">
+                <InputFile id="file-upload" OnChange="HandleImageUpload" accept="image/*" />
+            </div>
 
             @* Upload-fejl (fx for stor fil eller server-fejl) *@
             @if (!string.IsNullOrWhiteSpace(UploadErrorMessage))

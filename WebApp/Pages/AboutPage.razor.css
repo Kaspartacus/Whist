@@ -9,15 +9,17 @@
     margin-left: calc(-50vw + 50%);
 }
 
-
 /* Sektioner */
 .section {
     display: flex;
     width: 100vw;
-    height: calc(100vh - 90px);
+    min-height: 100vh;
+    height: 100vh;
     overflow: hidden;
     margin: 0;
     padding: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
 }
 
 .section.light { background-color: #f3f3f3; }
@@ -67,6 +69,7 @@ ul {
     .section {
         flex-direction: column;
         height: auto;
+        min-height: 0;
     }
 
     /* VIGTIGT: altid tekst først, så billede – uanset desktop-alternation */
@@ -85,4 +88,3 @@ ul {
         min-height: 240px;
     }
 }
-

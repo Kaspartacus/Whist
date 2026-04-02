@@ -24,7 +24,7 @@
     padding: 2rem;
     border-radius: 12px;
     width: 100%;
-    max-width: 400px;
+    max-width: 520px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
@@ -90,8 +90,54 @@
 }
 
 .modal-label {
-    font-size: 0.95rem;
-    font-weight: 500;
+    font-size: 1rem;
+    font-weight: 600;
     color: #555;
-    margin-bottom: -0.3rem;
+    margin-bottom: 0.25rem;
+}
+
+.selection-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.25rem;
+}
+
+.modal-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.player-option {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.65rem 0.8rem;
+    border-radius: 10px;
+    background-color: #f7f7fb;
+    font-size: 1rem;
+    line-height: 1.35;
+    cursor: pointer;
+}
+
+.player-option input[type="checkbox"] {
+    width: 1.15rem;
+    height: 1.15rem;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.player-option span {
+    font-size: 1.02rem;
+}
+
+@media (max-width: 560px) {
+    .modal-container {
+        max-width: 400px;
+    }
+
+    .selection-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
 }
