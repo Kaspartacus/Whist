@@ -19,6 +19,11 @@
         margin: 1.5rem auto;
         padding: 0;
     }
+
+    .main-container.main-container--full {
+        max-width: 100%;
+        margin: 0;
+    }
 }
 
 html, body {
