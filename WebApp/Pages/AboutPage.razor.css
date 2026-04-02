@@ -66,6 +66,10 @@ ul {
 
 /* Mobilvisning */
 @media (max-width: 768px) {
+    .full-bleed {
+        background-color: #f3f3f3;
+    }
+
     .section {
         flex-direction: column;
         height: auto;
