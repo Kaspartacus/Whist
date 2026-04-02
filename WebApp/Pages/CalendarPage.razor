@@ -79,8 +79,8 @@
 <!-- Modal: tilføj/redigér note -->
 @if (ShowNoteModal && SelectedDate.HasValue && CurrentUser is not null)
 {
-    <div class="modal-backdrop" tabindex="0" @onkeydown="HandleKeyDown">
-        <div class="modal-container">
+    <div class="modal-backdrop" tabindex="0" @onkeydown="HandleKeyDown" @onclick="CloseModal">
+        <div class="modal-container" @onclick:stopPropagation="true">
             <h3 class="modal-title">
                 @SelectedDate.Value.ToString("d. MMMM yyyy", new CultureInfo("da-DK"))
             </h3>

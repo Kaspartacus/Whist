@@ -1,4 +1,7 @@
 @page "/om_os"
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@using Microsoft.JSInterop
 
 <!--
     OM OS:
@@ -82,3 +85,34 @@
     </section>
 
 </div>
+
+@code {
+    private const string ScrollSnapModulePath = "/js/about-scroll-snap.js?v=2";
+    private IJSObjectReference? _scrollSnapModule;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        // Indlæser scroll-snap sikkert for denne side
+        _scrollSnapModule = await JS.InvokeAsync<IJSObjectReference>("import", ScrollSnapModulePath);
+        await _scrollSnapModule.InvokeVoidAsync("enable");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_scrollSnapModule is null)
+                return;
+
+            // Fjerner scroll-snap igen ved navigation væk
+            await _scrollSnapModule.InvokeVoidAsync("disable");
+            await _scrollSnapModule.DisposeAsync();
+        }
+        catch
+        {
+        }
+    }
+}

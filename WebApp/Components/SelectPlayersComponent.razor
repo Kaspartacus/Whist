@@ -24,11 +24,12 @@
     @* Backdrop: fast overlay der dækker hele skærmen *@
     <div class="modal-backdrop"
          tabindex="0"
-         @onkeydown="HandleKeyDown">
+         @onkeydown="HandleKeyDown"
+         @onclick="Close">
 
         @* Modal container:
            Indeholder titel, valg af vindere/tabere og actions *@
-        <div class="modal-container">
+        <div class="modal-container" @onclick:stopPropagation="true">
 
             @* Titel:
                - Sol-mode: “Sol-melding: X point”
@@ -44,6 +45,7 @@
                 }
             </h3>
 
+            <div class="selection-grid">
             @* ---------------------------------------------------------
                Vindere-sektion
                - Brugeren kan markere spillere som vindere
@@ -55,23 +57,23 @@
                 @* Liste med alle spillere *@
                 @foreach (var player in Players)
                 {
-                    <div>
+                    <label class="player-option">
                         <input type="checkbox"
                                checked="@player.IsWinner"
                                @onchange="() => ToggleWinner(player)" />
-                        @player.Nickname
-                    </div>
+                        <span>@player.Nickname</span>
+                    </label>
                 }
 
                 @* Selvmakker gælder kun i normal mode *@
                 @if (!IsSunMode)
                 {
-                    <div>
+                    <label class="player-option">
                         <input type="checkbox"
                                checked="@IsSelfmakkerWinner"
                                @onchange="ToggleSelfmakkerAsWinner" />
-                        Selvmakker
-                    </div>
+                        <span>Selvmakker</span>
+                    </label>
                 }
             </div>
 
@@ -85,23 +87,24 @@
 
                 @foreach (var player in Players)
                 {
-                    <div>
+                    <label class="player-option">
                         <input type="checkbox"
                                checked="@player.IsLoser"
                                @onchange="() => ToggleLoser(player)" />
-                        @player.Nickname
-                    </div>
+                        <span>@player.Nickname</span>
+                    </label>
                 }
 
                 @if (!IsSunMode)
                 {
-                    <div>
+                    <label class="player-option">
                         <input type="checkbox"
                                checked="@IsSelfmakkerLoser"
                                @onchange="ToggleSelfmakkerAsLoser" />
-                        Selvmakker
-                    </div>
+                        <span>Selvmakker</span>
+                    </label>
                 }
+            </div>
             </div>
 
             @* Fejlbesked (fx forkert kombination valgt) *@

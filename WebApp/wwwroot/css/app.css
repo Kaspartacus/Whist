@@ -141,7 +141,23 @@ body.nav-hidden .nav-root {
     transform: translateY(-110%);
 }
 
+html.about-scroll-snap,
+body.about-scroll-snap {
+    scroll-behavior: smooth;
+    scroll-snap-type: y mandatory;
+}
 
+body.about-scroll-snap footer.app-footer {
+    scroll-snap-align: end;
+    scroll-snap-stop: always;
+}
+
+@media (max-width: 768px) {
+    html.about-scroll-snap,
+    body.about-scroll-snap {
+        scroll-snap-type: none;
+    }
+}
 
 
 
