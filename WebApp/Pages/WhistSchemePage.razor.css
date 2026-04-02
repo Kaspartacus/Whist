@@ -288,6 +288,10 @@ h3.whist-point-title {
         max-height: none;
         min-height: unset;
     }
+
+    .point-summary .top-bar {
+        width: 100%;
+    }
     
     .btn-add {
         margin-left: auto;

@@ -156,6 +156,24 @@
     .brand {
         font-size: 44px; /* behold stort logo på mobil som i screenshot */
     }
+
+    .mobile-menu {
+        padding: 14px 16px 20px 16px;
+    }
+
+    .mobile-links {
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+    ::deep a.mobile-btn {
+        padding: 12px 14px;
+        font-size: 18px;
+    }
+
+    .mobile-logout {
+        margin-top: 28px;
+    }
 }
 
 @media (min-width: 901px) {

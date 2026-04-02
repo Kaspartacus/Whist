@@ -20,7 +20,7 @@
         padding: 0;
     }
 
-    .main-container--full {
+    .main-container.main-container--full {
         max-width: 100%;
         margin: 0;
     }

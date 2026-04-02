@@ -132,8 +132,18 @@
 }
 
 @media (max-width: 560px) {
+    .modal-backdrop {
+        align-items: flex-start;
+        overflow-y: auto;
+        padding: 1rem 0;
+    }
+
     .modal-container {
+        max-height: calc(100vh - 2rem);
         max-width: 400px;
+        overflow-y: auto;
+        margin: 0.75rem auto;
+        padding: 1.25rem;
     }
 
     .selection-grid {
