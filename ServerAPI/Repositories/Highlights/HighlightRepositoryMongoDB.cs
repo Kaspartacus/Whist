@@ -2,6 +2,7 @@ using Core;
 using MongoDB.Driver;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson;
+using ServerAPI.Configuration;
 using ServerAPI.Utils;
 
 namespace ServerAPI.Repositories.Highlights;
@@ -14,14 +15,15 @@ public class HighlightRepositoryMongoDB : IHighlightRepository
 {
     private readonly IMongoCollection<Highlight> _highlights;
     private readonly IMongoCollection<CounterDoc> _counters;
+    private readonly ILogger<HighlightRepositoryMongoDB> _logger;
 
     /// <summary>
     /// Opretter forbindelse til MongoDB, initialiserer collections og forsøger at oprette et index på Date for hurtig sortering/paging.
     /// </summary>
-    public HighlightRepositoryMongoDB(IConfiguration config)
+    public HighlightRepositoryMongoDB(IConfiguration config, ILogger<HighlightRepositoryMongoDB> logger)
     {
-        var client = new MongoClient(config["MongoDbSettings:ConnectionString"]);
-        var db = client.GetDatabase(config["MongoDbSettings:DatabaseName"]);
+        _logger = logger;
+        var db = MongoDatabaseFactory.Create(config);
         _highlights = db.GetCollection<Highlight>("highlights");
 
         // Collection til tællere (counter pattern)
@@ -37,10 +39,11 @@ public class HighlightRepositoryMongoDB : IHighlightRepository
 
             _highlights.Indexes.CreateOne(dateIndex);
         }
-        catch
+        catch (Exception ex)
         {
             // Soft fail: hvis index allerede findes eller DB ikke tillader create i miljøet,
             // så skal appen stadig kunne køre.
+            _logger.LogWarning(ex, "Could not create highlight date index. The app will continue without it.");
         }
     }
 
@@ -133,7 +136,7 @@ public class HighlightRepositoryMongoDB : IHighlightRepository
         highlight.Id = await GetNextIdAsync();
         
         // Automatisk: erstatter "KSDH" med BIF<3.
-        TextAutoReplace.Apply(highlight);
+        TextAutoReplace.Apply(highlight, _logger);
 
         await _highlights.InsertOneAsync(highlight);
         return highlight;
@@ -145,7 +148,9 @@ public class HighlightRepositoryMongoDB : IHighlightRepository
     /// <inheritdoc />
     public async Task Delete(int id)
     {
-        await _highlights.DeleteOneAsync(h => h.Id == id);
+        var result = await _highlights.DeleteOneAsync(h => h.Id == id);
+        if (result.DeletedCount == 0)
+            _logger.LogWarning("Highlight {HighlightId} was not deleted because it was not found.", id);
     }
 
     /// <summary>
@@ -155,9 +160,11 @@ public class HighlightRepositoryMongoDB : IHighlightRepository
     public async Task Update(Highlight highlight)
     {
         // Automatisk: erstatter "KSDH" med BIF<3.
-        TextAutoReplace.Apply(highlight);
+        TextAutoReplace.Apply(highlight, _logger);
         
-        await _highlights.ReplaceOneAsync(h => h.Id == highlight.Id, highlight);
+        var result = await _highlights.ReplaceOneAsync(h => h.Id == highlight.Id, highlight);
+        if (result.MatchedCount == 0)
+            _logger.LogWarning("Highlight {HighlightId} was not updated because it was not found.", highlight.Id);
     }
 
     // =========================

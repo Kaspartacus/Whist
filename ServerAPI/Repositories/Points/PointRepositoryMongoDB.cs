@@ -1,5 +1,6 @@
 using Core;
 using MongoDB.Driver;
+using ServerAPI.Configuration;
 
 namespace ServerAPI.Repositories.Points;
 
@@ -12,14 +13,15 @@ public class PointRepositoryMongoDB : IPointRepository
     private const string CollectionName = "points";
 
     private readonly IMongoCollection<PointEntry> _points;
+    private readonly ILogger<PointRepositoryMongoDB> _logger;
 
     /// <summary>
     /// Opretter forbindelse til MongoDB baseret på appsettings og initialiserer points-collection.
     /// </summary>
-    public PointRepositoryMongoDB(IConfiguration config)
+    public PointRepositoryMongoDB(IConfiguration config, ILogger<PointRepositoryMongoDB> logger)
     {
-        var client = new MongoClient(config["MongoDbSettings:ConnectionString"]);
-        var db = client.GetDatabase(config["MongoDbSettings:DatabaseName"]);
+        _logger = logger;
+        var db = MongoDatabaseFactory.Create(config);
         _points = db.GetCollection<PointEntry>(CollectionName);
     }
 
@@ -57,7 +59,9 @@ public class PointRepositoryMongoDB : IPointRepository
     /// <inheritdoc />
     public async Task Delete(int id)
     {
-        await _points.DeleteOneAsync(p => p.Id == id);
+        var result = await _points.DeleteOneAsync(p => p.Id == id);
+        if (result.DeletedCount == 0)
+            _logger.LogWarning("Point entry {PointEntryId} was not deleted because it was not found.", id);
     }
 
     /// <summary>

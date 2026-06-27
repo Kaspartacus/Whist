@@ -1,54 +1,98 @@
+using System.Net;
 using System.Net.Http.Json;
-using Blazored.LocalStorage;
 using Core;
+using Microsoft.AspNetCore.Components.Authorization;
+using WebApp.Service.ApiErrors;
 
 namespace WebApp.Service.AuthServices;
 
-/// <summary>
-/// Simpel auth-service til frontend.
-/// 
-/// Nuværende adfærd (bevidst bevaret):
-/// - Henter alle users fra API og matcher email+password i browseren.
-/// - Gemmer den fundne bruger i localStorage som "currentUser".
-/// 
-/// OBS: Sikkerhed kan strammes senere (server-side auth + hashing + tokens).
-/// </summary>
-public class AuthService : IAuthService
+public sealed class AuthService : IAuthService
 {
-    private const string CurrentUserStorageKey = "currentUser";
-
     private readonly HttpClient _http;
-    private readonly ILocalStorageService _localStorage;
+    private readonly TokenStorage _tokenStorage;
+    private readonly JwtAuthenticationStateProvider _authenticationStateProvider;
 
-    public AuthService(HttpClient http, ILocalStorageService localStorage)
+    public AuthService(
+        HttpClient http,
+        TokenStorage tokenStorage,
+        AuthenticationStateProvider authenticationStateProvider)
     {
         _http = http;
-        _localStorage = localStorage;
+        _tokenStorage = tokenStorage;
+        _authenticationStateProvider = (JwtAuthenticationStateProvider)authenticationStateProvider;
     }
 
     public async Task<bool> Login(string email, string password)
     {
-        // Bevar logik: hent alle brugere og find match
-        var users = await _http.GetFromJsonAsync<User[]>("api/user") ?? Array.Empty<User>();
+        var response = await _http.PostAsJsonAsync("api/auth/login", new LoginRequest
+        {
+            Email = email,
+            Password = password
+        });
 
-        var user = users.FirstOrDefault(u =>
-            string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase) &&
-            u.Password == password);
-
-        if (user is null)
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
             return false;
 
-        await _localStorage.SetItemAsync(CurrentUserStorageKey, user);
+        var login = await response.ReadFromJsonOrThrowAsync<LoginResponse>();
+        if (login is null ||
+            string.IsNullOrWhiteSpace(login.AccessToken) ||
+            string.IsNullOrWhiteSpace(login.RefreshToken))
+        {
+            return false;
+        }
+
+        await _tokenStorage.SetTokensAsync(login.AccessToken, login.RefreshToken);
+        _authenticationStateProvider.NotifyAuthenticationChanged();
         return true;
     }
 
     public async Task Logout()
     {
-        await _localStorage.RemoveItemAsync(CurrentUserStorageKey);
+        try
+        {
+            var refreshToken = await _tokenStorage.GetRefreshTokenAsync();
+            await _http.PostAsJsonAsync("api/auth/logout", new LogoutRequest
+            {
+                RefreshToken = refreshToken
+            });
+        }
+        finally
+        {
+            await _tokenStorage.RemoveTokensAsync();
+            _authenticationStateProvider.NotifyAuthenticationChanged();
+        }
     }
 
     public async Task<User?> GetCurrentUser()
     {
-        return await _localStorage.GetItemAsync<User>(CurrentUserStorageKey);
+        var authenticatedUser = await _authenticationStateProvider.GetAuthenticatedUserAsync();
+        return authenticatedUser is null
+            ? null
+            : new User
+            {
+                Id = authenticatedUser.Id,
+                Name = authenticatedUser.Name,
+                Email = authenticatedUser.Email
+            };
+    }
+
+    public async Task ChangePassword(string currentPassword, string newPassword)
+    {
+        var response = await _http.PostAsJsonAsync("api/auth/change-password", new ChangePasswordRequest
+        {
+            CurrentPassword = currentPassword,
+            NewPassword = newPassword
+        });
+
+        var login = await response.ReadFromJsonOrThrowAsync<LoginResponse>();
+        if (login is null ||
+            string.IsNullOrWhiteSpace(login.AccessToken) ||
+            string.IsNullOrWhiteSpace(login.RefreshToken))
+        {
+            return;
+        }
+
+        await _tokenStorage.SetTokensAsync(login.AccessToken, login.RefreshToken);
+        _authenticationStateProvider.NotifyAuthenticationChanged();
     }
 }

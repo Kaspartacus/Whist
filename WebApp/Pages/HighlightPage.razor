@@ -22,12 +22,13 @@
     <h2>Highlights</h2>
 
     @* Kun loggede brugere kan tilføje *@
-    @if (CurrentUser is not null)
-    {
-        <button class="btn-add" @onclick="OpenAddModal">
-            + Tilføj highlight
-        </button>
-    }
+    <AuthorizeView>
+        <Authorized>
+            <button class="btn-add" @onclick="OpenAddModal">
+                + Tilføj highlight
+            </button>
+        </Authorized>
+    </AuthorizeView>
 </div>
 
 @* Re-usable add/edit component (bruges også til redigering via Show(h)) *@
@@ -93,13 +94,14 @@
                     </span>
 
                     @* Kun loggede brugere kan redigere/slette *@
-                    @if (CurrentUser is not null)
-                    {
-                        <div class="actions">
-                            <button class="icon-button blue" title="Redigér" @onclick="() => EditHighlight(h)">✏️</button>
-                            <button class="icon-button red" title="Slet" @onclick="() => ConfirmDelete(h)">🗑️</button>
-                        </div>
-                    }
+                    <AuthorizeView>
+                        <Authorized>
+                            <div class="actions">
+                                <button class="icon-button blue" title="Redigér" @onclick="() => EditHighlight(h)">✏️</button>
+                                <button class="icon-button red" title="Slet" @onclick="() => ConfirmDelete(h)">🗑️</button>
+                            </div>
+                        </Authorized>
+                    </AuthorizeView>
                 </div>
             </div>
         </div>

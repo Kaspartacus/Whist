@@ -3,22 +3,22 @@
 @using WebApp.Components
 @using WebApp.Service.RuleServices
 @inject IRuleService RuleService
-@inject Service.AuthServices.IAuthService AuthService
 
 <div class="page-header">
     <h2>Regler</h2>
 
     @* Kun brugere med login må oprette/redigere/slette *@
-    @if (CurrentUser is not null)
-    {
-        <div class="rules-actions">
-            <button class="btn-add" @onclick="OpenAddModal">+ Opret regel</button>
+    <AuthorizeView>
+        <Authorized>
+            <div class="rules-actions">
+                <button class="btn-add" @onclick="OpenAddModal">+ Opret regel</button>
 
-            <button class="btn-add" @onclick="ToggleEditMode">
-                @(editMode ? "Afslut redigering" : "Rediger regler")
-            </button>
-        </div>
-    }
+                <button class="btn-add" @onclick="ToggleEditMode">
+                    @(editMode ? "Afslut redigering" : "Rediger regler")
+                </button>
+            </div>
+        </Authorized>
+    </AuthorizeView>
 </div>
 
 @* Modal til opret/redigér *@
@@ -48,10 +48,14 @@ else
                 @* Knapper vises kun i rediger-tilstand *@
                 @if (editMode)
                 {
-                    <div class="actions">
-                        <button class="icon-button blue" title="Redigér" @onclick="() => EditRule(rule)">✏️</button>
-                        <button class="icon-button red" title="Slet" @onclick="() => ConfirmDelete(rule)">🗑️</button>
-                    </div>
+                    <AuthorizeView>
+                        <Authorized>
+                            <div class="actions">
+                                <button class="icon-button blue" title="Redigér" @onclick="() => EditRule(rule)">✏️</button>
+                                <button class="icon-button red" title="Slet" @onclick="() => ConfirmDelete(rule)">🗑️</button>
+                            </div>
+                        </Authorized>
+                    </AuthorizeView>
                 }
             </div>
         }
@@ -65,8 +69,6 @@ else
     private List<Rule> Rules = new();
     private bool editMode;
 
-    private User? CurrentUser;
-
     private AddRuleComponent? addRuleComponent;
     private ConfirmDeleteComponent? confirmDeleteComponent;
 
@@ -77,7 +79,6 @@ else
     // =========================
     protected override async Task OnInitializedAsync()
     {
-        CurrentUser = await AuthService.GetCurrentUser();
         await LoadRules();
     }
 

@@ -163,7 +163,6 @@
     
     // Fokus-håndtering (så Enter virker direkte)
     private ElementReference ConfirmButtonRef;
-    private bool _shouldFocusConfirmButton;
 
     // =========================
     // Model til UI-valg
@@ -419,10 +418,4 @@
             await Close();
         }
     }
-    
-    // =========================
-    // Actions
-    // =========================
-    private Task OnEnter() => Confirm();
-    private Task OnEscape() { Close(); return Task.CompletedTask; }
 }

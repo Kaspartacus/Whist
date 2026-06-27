@@ -1,6 +1,6 @@
 using System.Net.Http.Json;
 using Core;
-using WebApp.Service.AuthServices;
+using WebApp.Service.ApiErrors;
 
 namespace WebApp.Service.PointServices;
 
@@ -14,16 +14,14 @@ namespace WebApp.Service.PointServices;
 public class PointService : IPointService
 {
     private readonly HttpClient _http;
-    private readonly IAuthService _auth;
 
     // Saml routes ét sted, så de er nemme at ændre (hvis du en dag ændrer controller routes).
     private const string BaseRoute = "api/point";
     private const string DeleteAllRoute = "api/point/all";
 
-    public PointService(HttpClient http, IAuthService auth)
+    public PointService(HttpClient http)
     {
         _http = http;
-        _auth = auth;
     }
 
     /// <inheritdoc />
@@ -37,34 +35,28 @@ public class PointService : IPointService
     public async Task Add(PointEntry point)
     {
         // Vi forventer ikke noget svar-body.
-        await AddDevKeyHeaderIfLoggedIn();
-        var res = await _http.PostAsJsonAsync(BaseRoute, point);
-        res.EnsureSuccessStatusCode();
+        var res = await _http.PostAsJsonAsync(BaseRoute, ToCreateRequest(point));
+        await res.EnsureSuccessWithApiMessageAsync();
     }
 
     /// <inheritdoc />
     public async Task Delete(int id)
     {
-        await AddDevKeyHeaderIfLoggedIn();
         var res = await _http.DeleteAsync($"{BaseRoute}/{id}");
-        res.EnsureSuccessStatusCode();
+        await res.EnsureSuccessWithApiMessageAsync();
     }
 
     /// <inheritdoc />
     public async Task DeleteAll()
     {
-        await AddDevKeyHeaderIfLoggedIn();
         var res = await _http.DeleteAsync(DeleteAllRoute);
-        res.EnsureSuccessStatusCode();
+        await res.EnsureSuccessWithApiMessageAsync();
     }
-    
-    // Helper til authentication
-    private async Task AddDevKeyHeaderIfLoggedIn()
-    {
-        var user = await _auth.GetCurrentUser();
-        _http.DefaultRequestHeaders.Remove("X-Whist-Key");
 
-        if (user is not null)
-            _http.DefaultRequestHeaders.Add("X-Whist-Key", "whist-dev-key");
-    }
+    private static CreatePointRequest ToCreateRequest(PointEntry point) => new()
+    {
+        PlayerId = point.PlayerId,
+        Points = point.Points,
+        Date = point.Date
+    };
 }

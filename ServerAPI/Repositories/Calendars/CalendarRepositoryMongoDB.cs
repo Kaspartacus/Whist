@@ -1,6 +1,7 @@
 using Core;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
+using ServerAPI.Configuration;
 using ServerAPI.Utils;
 
 namespace ServerAPI.Repositories.Calendars;
@@ -17,14 +18,15 @@ public class CalendarRepositoryMongoDB : ICalendarRepository
 
     private readonly IMongoCollection<Calendar> _calendar;
     private readonly IMongoCollection<CounterDoc> _counters;
+    private readonly ILogger<CalendarRepositoryMongoDB> _logger;
 
     /// <summary>
     /// Initialiserer repository: opretter MongoDB-klient, vælger DB/collections og sikrer relevante indexes.
     /// </summary>
-    public CalendarRepositoryMongoDB(IConfiguration config)
+    public CalendarRepositoryMongoDB(IConfiguration config, ILogger<CalendarRepositoryMongoDB> logger)
     {
-        var client = new MongoClient(config["MongoDbSettings:ConnectionString"]);
-        var db = client.GetDatabase(config["MongoDbSettings:DatabaseName"]);
+        _logger = logger;
+        var db = MongoDatabaseFactory.Create(config);
 
         _calendar = db.GetCollection<Calendar>(CalendarCollectionName);
         _counters = db.GetCollection<CounterDoc>(CounterCollectionName);
@@ -96,7 +98,7 @@ public class CalendarRepositoryMongoDB : ICalendarRepository
         }
         
         // Automatisk: erstatter "KSDH" med BIF<3.
-        TextAutoReplace.Apply(calendarEvent);
+        TextAutoReplace.Apply(calendarEvent, _logger);
 
         // Upsert på dato (unik index sørger for at der ikke kan komme dubletter).
         var filter = Builders<Calendar>.Filter.Eq(x => x.Date, calendarEvent.Date);
@@ -108,7 +110,9 @@ public class CalendarRepositoryMongoDB : ICalendarRepository
     /// </summary>
     public async Task Delete(int id)
     {
-        await _calendar.DeleteOneAsync(c => c.Id == id);
+        var result = await _calendar.DeleteOneAsync(c => c.Id == id);
+        if (result.DeletedCount == 0)
+            _logger.LogWarning("Calendar event {CalendarId} was not deleted because it was not found.", id);
     }
 
     /// <summary>
@@ -138,7 +142,9 @@ public class CalendarRepositoryMongoDB : ICalendarRepository
     public async Task MarkReminderSent(int calendarId)
     {
         var update = Builders<Calendar>.Update.Set(x => x.ReminderSent, true);
-        await _calendar.UpdateOneAsync(c => c.Id == calendarId, update);
+        var result = await _calendar.UpdateOneAsync(c => c.Id == calendarId, update);
+        if (result.MatchedCount == 0)
+            _logger.LogWarning("Calendar event {CalendarId} was not marked as reminder sent because it was not found.", calendarId);
     }
 
     /// <summary>
@@ -152,7 +158,14 @@ public class CalendarRepositoryMongoDB : ICalendarRepository
         var filter = Builders<Calendar>.Filter.In(x => x.Id, ids);
         var update = Builders<Calendar>.Update.Set(x => x.ReminderSent, true);
 
-        await _calendar.UpdateManyAsync(filter, update);
+        var result = await _calendar.UpdateManyAsync(filter, update);
+        if (result.MatchedCount < ids.Length)
+        {
+            _logger.LogWarning(
+                "Only {MatchedCount} of {RequestedCount} calendar events were found when marking reminders as sent.",
+                result.MatchedCount,
+                ids.Length);
+        }
     }
 
     // --------------------------

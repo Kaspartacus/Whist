@@ -1,6 +1,6 @@
 using System.Net.Http.Json;
 using Core;
-using WebApp.Service.AuthServices;
+using WebApp.Service.ApiErrors;
 
 namespace WebApp.Service;
 
@@ -14,14 +14,11 @@ namespace WebApp.Service;
 public class UserService : IUserService
 {
     private readonly HttpClient _http;
-    private readonly IAuthService _auth;
-
     private const string BaseRoute = "api/user";
 
-    public UserService(HttpClient http, IAuthService auth)
+    public UserService(HttpClient http)
     {
         _http = http;
-        _auth = auth;
     }
 
     public async Task<User[]> GetAll() => await _http.GetFromJsonAsync<User[]>(BaseRoute) ?? Array.Empty<User>();
@@ -30,34 +27,50 @@ public class UserService : IUserService
     public async Task<User?> GetById(int id) => await _http.GetFromJsonAsync<User?>($"{BaseRoute}/{id}");
     
 
-    public async Task AddUser(User user)
+    public async Task AddUser(User user, string password)
     {
-        await AddDevKeyHeaderIfLoggedIn();
-        var res = await _http.PostAsJsonAsync(BaseRoute, user);
-        res.EnsureSuccessStatusCode();
+        var request = ToSaveRequest(user, password);
+        var res = await _http.PostAsJsonAsync(BaseRoute, request);
+        await res.EnsureSuccessWithApiMessageAsync();
     }
 
     public async Task Delete(int id)
     {
-        await AddDevKeyHeaderIfLoggedIn();
         var res = await _http.DeleteAsync($"{BaseRoute}/{id}");
-        res.EnsureSuccessStatusCode();
+        await res.EnsureSuccessWithApiMessageAsync();
     }
 
     public async Task Update(User user)
     {
-        await AddDevKeyHeaderIfLoggedIn();
-        var res = await _http.PutAsJsonAsync($"{BaseRoute}/{user.Id}", user);
-        res.EnsureSuccessStatusCode();
+        var request = ToSaveRequest(user, password: null);
+        var res = await _http.PutAsJsonAsync($"{BaseRoute}/{user.Id}", request);
+        await res.EnsureSuccessWithApiMessageAsync();
     }
-    
-    // Helper til authentication.
-    private async Task AddDevKeyHeaderIfLoggedIn()
-    {
-        var user = await _auth.GetCurrentUser();
-        _http.DefaultRequestHeaders.Remove("X-Whist-Key");
 
-        if (user is not null)
-            _http.DefaultRequestHeaders.Add("X-Whist-Key", "whist-dev-key");
+    public async Task ResetPassword(int id, string newPassword)
+    {
+        var res = await _http.PostAsJsonAsync($"{BaseRoute}/{id}/reset-password", new ResetPasswordRequest
+        {
+            NewPassword = newPassword
+        });
+        await res.EnsureSuccessWithApiMessageAsync();
+    }
+
+    private static SaveUserRequest ToSaveRequest(User user, string? password)
+    {
+        return new SaveUserRequest
+        {
+            Id = user.Id,
+            Name = user.Name,
+            NickName = user.NickName,
+            Email = user.Email,
+            Password = password,
+            Address = user.Address,
+            PhoneNumber = user.PhoneNumber,
+            BirthDate = user.BirthDate,
+            Description = user.Description,
+            FunFact = user.FunFact,
+            ImageUrl = user.ImageUrl
+        };
     }
 }

@@ -12,35 +12,31 @@ public class User
     public int Id { get; set; }
 
     /// <summary>Fulde navn (maks 40 tegn).</summary>
+    [Required]
     [MaxLength(40)]
     public string Name { get; set; } = "";
 
     /// <summary>Kaldenavn/visningsnavn (maks 30 tegn).</summary>
+    [Required]
     [MaxLength(30)]
     public string NickName { get; set; } = "";
 
     /// <summary>Email (maks 100 tegn).</summary>
+    [Required]
     [MaxLength(100)]
     [EmailAddress]
     public string Email { get; set; } = "";
 
-    /// <summary>
-    /// Password (maks 100 tegn).
-    /// NOTE: I prod bør dette altid være hashed/saltet i DB (ikke plaintext).
-    /// </summary>
-    [MaxLength(100)]
-    public string Password { get; set; } = "";
-
     /// <summary>Adresse (maks 200 tegn).</summary>
+    [Required]
     [MaxLength(200)]
     public string Address { get; set; } = "";
 
     /// <summary>
     /// Telefonnummer (8 cifre) – bruges fx til MobilePay.
     /// </summary>
-    [MaxLength(8)]
-    [MinLength(8)]
-    [Phone]
+    [Required]
+    [RegularExpression(@"^\d{8}$", ErrorMessage = "Telefonnummer skal være 8 cifre.")]
     public string PhoneNumber { get; set; } = "";
 
     /// <summary>Fødselsdato (valgfri).</summary>
@@ -55,6 +51,7 @@ public class User
     public string FunFact { get; set; } = "";
 
     /// <summary>URL til profilbillede.</summary>
+    [MaxLength(500)]
     public string ImageUrl { get; set; } = "";
 
     /// <summary>Liste over bøder tilknyttet brugeren.</summary>

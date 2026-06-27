@@ -12,10 +12,12 @@ public class Highlight
     public int Id { get; set; }
 
     /// <summary>Kort titel (maks 80 tegn).</summary>
+    [Required]
     [MaxLength(80)]
     public string Title { get; set; } = "";
 
     /// <summary>Beskrivelse (maks 400 tegn).</summary>
+    [Required]
     [MaxLength(400)]
     public string Description { get; set; } = "";
 
@@ -23,9 +25,11 @@ public class Highlight
     public DateTime Date { get; set; } = DateTime.Today;
 
     /// <summary>URL til billede (hvis der er uploadet et).</summary>
+    [MaxLength(500)]
     public string? ImageUrl { get; set; }
 
     /// <summary>ID på brugeren som highlightet tilhører.</summary>
+    [Range(0, int.MaxValue)]
     public int UserId { get; set; }
 
     /// <summary>

@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Components.Web
 
 @inject Service.IUserService UserService
+@inject Service.AuthServices.IAuthService AuthService
 @inject Service.UploadServices.IUploadService UploadService
 
 @* =========================================================
@@ -51,12 +52,22 @@
                    @bind-value="Email"
                    @bind-value:event="oninput" />
 
-            <input class="modal-input"
-                   placeholder="Kodeord"
-                   type="password"
-                   maxlength="100"
-                   @bind-value="Password"
-                   @bind-value:event="oninput" />
+            @if (UserToEdit is null)
+            {
+                <input class="modal-input"
+                       placeholder="Kodeord"
+                       type="password"
+                       maxlength="100"
+                       @bind-value="Password"
+                       @bind-value:event="oninput" />
+
+                <input class="modal-input"
+                       placeholder="Gentag kodeord"
+                       type="password"
+                       maxlength="100"
+                       @bind-value="ConfirmPassword"
+                       @bind-value:event="oninput" />
+            }
 
             <input class="modal-input"
                    placeholder="Adresse"
@@ -115,6 +126,54 @@
                 <InputFile id="file-upload" OnChange="HandleImageUpload" accept="image/*" />
             </div>
 
+            @if (UserToEdit is not null && IsEditingOwnUser)
+            {
+                <div class="modal-field">
+                    <label class="modal-label">Skift kodeord</label>
+                    <input class="modal-input"
+                           placeholder="Nuværende kodeord"
+                           type="password"
+                           maxlength="100"
+                           @bind-value="CurrentPassword"
+                           @bind-value:event="oninput" />
+
+                    <input class="modal-input"
+                           placeholder="Nyt kodeord"
+                           type="password"
+                           maxlength="100"
+                           @bind-value="NewPassword"
+                           @bind-value:event="oninput" />
+
+                    <input class="modal-input"
+                           placeholder="Gentag nyt kodeord"
+                           type="password"
+                           maxlength="100"
+                           @bind-value="ConfirmNewPassword"
+                           @bind-value:event="oninput" />
+
+                </div>
+            }
+
+            @if (UserToEdit is not null && IsAdmin && !IsEditingOwnUser)
+            {
+                <div class="modal-field">
+                    <label class="modal-label">Nulstil kodeord</label>
+                    <input class="modal-input"
+                           placeholder="Nyt kodeord"
+                           type="password"
+                           maxlength="100"
+                           @bind-value="NewPassword"
+                           @bind-value:event="oninput" />
+
+                    <input class="modal-input"
+                           placeholder="Gentag nyt kodeord"
+                           type="password"
+                           maxlength="100"
+                           @bind-value="ConfirmNewPassword"
+                           @bind-value:event="oninput" />
+                </div>
+            }
+
             @* Upload-fejl (fx for stor fil eller server-fejl) *@
             @if (!string.IsNullOrWhiteSpace(UploadErrorMessage))
             {
@@ -152,6 +211,10 @@
     private string NickName = "";
     private string Email = "";
     private string Password = "";
+    private string ConfirmPassword = "";
+    private string CurrentPassword = "";
+    private string NewPassword = "";
+    private string ConfirmNewPassword = "";
     private string Address = "";
     private string PhoneNumber = "";
     private DateOnly? BirthDate = null;
@@ -182,6 +245,10 @@
     /// Parent (UserPage) kaldes når bruger er oprettet/ændret, så listen kan reloades.
     /// </summary>
     [Parameter] public EventCallback OnUserAdded { get; set; }
+    [Parameter] public int? CurrentUserId { get; set; }
+    [Parameter] public bool IsAdmin { get; set; }
+
+    private bool IsEditingOwnUser => UserToEdit is not null && CurrentUserId == UserToEdit.Id;
 
     // =========================
     // Public API (kald via @ref)
@@ -205,7 +272,11 @@
             Name = userToEdit.Name;
             Email = userToEdit.Email;
             NickName = userToEdit.NickName;
-            Password = userToEdit.Password;
+            Password = "";
+            ConfirmPassword = "";
+            CurrentPassword = "";
+            NewPassword = "";
+            ConfirmNewPassword = "";
             Address = userToEdit.Address;
             PhoneNumber = userToEdit.PhoneNumber;
             BirthDate = userToEdit.BirthDate;
@@ -223,6 +294,10 @@
             Email = "";
             NickName = "";
             Password = "";
+            ConfirmPassword = "";
+            CurrentPassword = "";
+            NewPassword = "";
+            ConfirmNewPassword = "";
             Address = "";
             PhoneNumber = "";
 
@@ -251,7 +326,7 @@
     {
         showModal = false;
 
-        Name = NickName = Email = Password = Address = PhoneNumber = Description = FunFact = "";
+        Name = NickName = Email = Password = ConfirmPassword = CurrentPassword = NewPassword = ConfirmNewPassword = Address = PhoneNumber = Description = FunFact = "";
         BirthDate = DateOnly.MaxValue;
 
         UploadedImage = null;
@@ -326,9 +401,39 @@
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(Password) || Password.Length < 6)
+        if (UserToEdit is null && (string.IsNullOrWhiteSpace(Password) || Password.Length < 8))
         {
-            ValidationErrorMessage = "Kodeord er påkrævet og skal være mindst 6 tegn.";
+            ValidationErrorMessage = "Kodeord er påkrævet og skal være mindst 8 tegn.";
+            return;
+        }
+
+        if (UserToEdit is null && Password != ConfirmPassword)
+        {
+            ValidationErrorMessage = "Kodeordene er ikke ens.";
+            return;
+        }
+
+        if (UserToEdit is not null && WantsToChangePassword && string.IsNullOrWhiteSpace(NewPassword))
+        {
+            ValidationErrorMessage = "Nyt kodeord skal udfyldes.";
+            return;
+        }
+
+        if (UserToEdit is not null && WantsToChangePassword && NewPassword.Length < 8)
+        {
+            ValidationErrorMessage = "Et nyt kodeord skal være mindst 8 tegn.";
+            return;
+        }
+
+        if (UserToEdit is not null && WantsToChangePassword && NewPassword != ConfirmNewPassword)
+        {
+            ValidationErrorMessage = "De nye kodeord er ikke ens.";
+            return;
+        }
+
+        if (UserToEdit is not null && IsEditingOwnUser && WantsToChangePassword && string.IsNullOrWhiteSpace(CurrentPassword))
+        {
+            ValidationErrorMessage = "Nuværende kodeord skal udfyldes for at skifte kodeord.";
             return;
         }
 
@@ -359,7 +464,6 @@
             UserToEdit.Name = Name;
             UserToEdit.NickName = NickName;
             UserToEdit.Email = Email;
-            UserToEdit.Password = Password;
             UserToEdit.Address = Address;
             UserToEdit.PhoneNumber = PhoneNumber;
             UserToEdit.BirthDate = BirthDate;
@@ -370,7 +474,25 @@
             // Ellers bevarer vi det eksisterende.
             UserToEdit.ImageUrl = ImagePreview ?? UserToEdit.ImageUrl;
 
-            await UserService.Update(UserToEdit);
+            try
+            {
+                await UserService.Update(UserToEdit);
+
+                if (WantsToChangePassword)
+                {
+                    if (IsEditingOwnUser)
+                        await AuthService.ChangePassword(CurrentPassword, NewPassword);
+                    else if (IsAdmin)
+                        await UserService.ResetPassword(UserToEdit.Id, NewPassword);
+                }
+            }
+            catch
+            {
+                ValidationErrorMessage = IsEditingOwnUser && WantsToChangePassword
+                    ? "Kunne ikke skifte kodeord. Tjek dit nuværende kodeord og prøv igen. Kan du ikke huske dit nuværende kodeord, så kontakt venligst admin brugeren for at nulstille dit kodeord."
+                    : "Kunne ikke gemme brugerændringerne. Tjek kodeordet og prøv igen.";
+                return;
+            }
         }
         else
         {
@@ -380,7 +502,6 @@
                 Name = Name,
                 NickName = NickName,
                 Email = Email,
-                Password = Password,
                 Address = Address,
                 PhoneNumber = PhoneNumber,
                 BirthDate = BirthDate,
@@ -389,7 +510,7 @@
                 ImageUrl = ImagePreview ?? ""
             };
 
-            await UserService.AddUser(newUser);
+            await UserService.AddUser(newUser, Password);
         }
 
         // Fortæl parent at listen skal reloades
@@ -397,6 +518,11 @@
 
         Close();
     }
+
+    private bool WantsToChangePassword =>
+        !string.IsNullOrWhiteSpace(CurrentPassword) ||
+        !string.IsNullOrWhiteSpace(NewPassword) ||
+        !string.IsNullOrWhiteSpace(ConfirmNewPassword);
     
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

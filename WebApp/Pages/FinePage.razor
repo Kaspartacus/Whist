@@ -15,7 +15,11 @@
      ========================= -->
 <div class="top-bar">
     <h2>Bøder</h2>
-    <button class="btn-add" @onclick="OpenAddFineModal">+ Tilføj bøde</button>
+    <AuthorizeView>
+        <Authorized>
+            <button class="btn-add" @onclick="OpenAddFineModal">+ Tilføj bøde</button>
+        </Authorized>
+    </AuthorizeView>
 </div>
 
 <!-- =========================
@@ -32,15 +36,19 @@
 
         <div class="user-card">
             <!-- Stjerne-knap (opretter en "stjerne-bøde") -->
-            <div class="star-button-wrapper">
-                <button class="star-button" @onclick="() => AddStarFine(user.Id)">
-                    ⭐
-                    @if (GetStarCount(user.Id) > 0)
-                    {
-                        <span class="star-count">@GetStarCount(user.Id)</span>
-                    }
-                </button>
-            </div>
+            <AuthorizeView>
+                <Authorized>
+                    <div class="star-button-wrapper">
+                        <button class="star-button" @onclick="() => AddStarFine(user.Id)">
+                            ⭐
+                            @if (GetStarCount(user.Id) > 0)
+                            {
+                                <span class="star-count">@GetStarCount(user.Id)</span>
+                            }
+                        </button>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
 
             <div class="user-header">@user.NickName</div>
 
@@ -173,11 +181,15 @@
                 <td>@(fine.IsPaid ? "✅" : "❌")</td>
                 <td class="fine-comment-cell">@fine.Comment</td>
                 <td>
-                    @if (fine.UserId != CurrentUser?.Id)
-                    {
-                        <button class="icon-button blue" @onclick="() => EditFine(fine)">✏️</button>
-                        <button class="icon-button red" @onclick="() => ConfirmDelete(fine)">🗑️</button>
-                    }
+                    <AuthorizeView>
+                        <Authorized>
+                            @if (CurrentUser is not null && fine.UserId != CurrentUser.Id)
+                            {
+                                <button class="icon-button blue" @onclick="() => EditFine(fine)">✏️</button>
+                                <button class="icon-button red" @onclick="() => ConfirmDelete(fine)">🗑️</button>
+                            }
+                        </Authorized>
+                    </AuthorizeView>
                 </td>
             </tr>
         }

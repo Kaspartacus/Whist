@@ -1,11 +1,19 @@
-using ServerAPI.Repositories;
+using System.Text;
+using System.IdentityModel.Tokens.Jwt;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.IdentityModel.Tokens;
+using ServerAPI.Auth;
 using ServerAPI.Repositories.Calendars;
 using ServerAPI.Repositories.Fines;
 using ServerAPI.Repositories.Highlights;
 using ServerAPI.Repositories.Points;
 using ServerAPI.Repositories.Rules;
 using ServerAPI.Workers;
-using Microsoft.AspNetCore.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,31 +30,193 @@ builder.Services.AddSwaggerGen();
 
 // Repositories (MongoDB implementeringer)
 // Singleton er ok her, så længe dine repos bruger thread-safe MongoClient (typisk).
-builder.Services.AddSingleton<IUserRepository, UserRepositoryMongoDB>();
 builder.Services.AddSingleton<IFineRepository, FineRepositoryMongoDB>();
 builder.Services.AddSingleton<IHighlightRepository, HighlightRepositoryMongoDB>();
 builder.Services.AddSingleton<IRuleRepository, RuleRepositoryMongoDB>();
 builder.Services.AddSingleton<ICalendarRepository, CalendarRepositoryMongoDB>();
 builder.Services.AddSingleton<IPointRepository, PointRepositoryMongoDB>();
 
+builder.Services.AddSingleton<MongoIdentityContext>();
+builder.Services.AddScoped<IUserStore<ApplicationUser>, MongoUserStore>();
+builder.Services.AddScoped<IRoleStore<ApplicationRole>, MongoRoleStore>();
+builder.Services.AddScoped<IdentityDataInitializer>();
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<IRefreshTokenStore, MongoRefreshTokenStore>();
+builder.Services.AddScoped<RefreshTokenService>();
+
 builder.Services
-    .AddAuthentication("DevKey")
-    .AddScheme<AuthenticationSchemeOptions, DevKeyAuthHandler>("DevKey", options => { });
+    .AddIdentityCore<ApplicationUser>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+        options.Password.RequiredLength = 8;
+        options.Password.RequireDigit = false;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Lockout.AllowedForNewUsers = true;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    })
+    .AddRoles<ApplicationRole>()
+    .AddDefaultTokenProviders();
 
+builder.Services
+    .AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+    .Validate(options => !string.IsNullOrWhiteSpace(options.Issuer), "Jwt:Issuer is required.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.Audience), "Jwt:Audience is required.")
+    .Validate(options => options.Key.Length >= 32, "Jwt:Key must be at least 32 characters.")
+    .Validate(options => options.AccessTokenMinutes is >= 5 and <= 120, "Jwt:AccessTokenMinutes must be between 5 and 120.")
+    .Validate(options => options.RefreshTokenDays is >= 1 and <= 30, "Jwt:RefreshTokenDays must be between 1 and 30.")
+    .ValidateOnStart();
 
+var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
+    ?? throw new InvalidOperationException("JWT configuration is required.");
 
-// Authorization er slået til
-builder.Services.AddAuthorization();
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key)),
+            ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
+            ValidateLifetime = true,
+            RequireExpirationTime = true,
+            RequireSignedTokens = true,
+            ClockSkew = TimeSpan.FromMinutes(1),
+            NameClaimType = "name",
+            RoleClaimType = "role"
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("JwtValidation");
+                var userId = context.Principal?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+                var tokenSecurityStamp = context.Principal?.FindFirst(AuthClaimTypes.SecurityStamp)?.Value;
+                if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(tokenSecurityStamp))
+                {
+                    logger.LogWarning(
+                        "JWT rejected for {Path}: missing required claims. IP: {IpAddress}.",
+                        context.HttpContext.Request.Path,
+                        context.HttpContext.Connection.RemoteIpAddress);
+                    context.Fail("Token is missing required authentication claims.");
+                    return;
+                }
+
+                var userManager = context.HttpContext.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+                var user = await userManager.FindByIdAsync(userId);
+                if (user is null)
+                {
+                    logger.LogWarning(
+                        "JWT rejected for {Path}: user {UserId} no longer exists. IP: {IpAddress}.",
+                        context.HttpContext.Request.Path,
+                        userId,
+                        context.HttpContext.Connection.RemoteIpAddress);
+                    context.Fail("User no longer exists.");
+                    return;
+                }
+
+                var currentSecurityStamp = await userManager.GetSecurityStampAsync(user);
+                if (!string.Equals(currentSecurityStamp, tokenSecurityStamp, StringComparison.Ordinal))
+                {
+                    logger.LogWarning(
+                        "JWT rejected for user {UserId} ({Email}): token was revoked or password/logout changed security stamp.",
+                        user.Id,
+                        user.Email);
+                    context.Fail("Token has been revoked.");
+                }
+            },
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("JwtValidation");
+                logger.LogWarning(
+                    "JWT authentication failed for {Path}. IP: {IpAddress}. Reason: {ErrorMessage}",
+                    context.HttpContext.Request.Path,
+                    context.HttpContext.Connection.RemoteIpAddress,
+                    context.Exception.Message);
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        var logger = context.HttpContext.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("RateLimiting");
+        logger.LogWarning(
+            "Rate limit hit on {Path}. User: {UserId}. IP: {IpAddress}.",
+            context.HttpContext.Request.Path,
+            GetAuthenticatedUserId(context.HttpContext) ?? "anonymous",
+            context.HttpContext.Connection.RemoteIpAddress);
+
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new { message = "For mange forsøg. Prøv igen om lidt." },
+            cancellationToken);
+    };
+
+    options.AddPolicy("login", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetClientIp(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("upload", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetAuthenticatedUserId(httpContext) ?? GetClientIp(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
 
 // Background worker (mail reminders)
 builder.Services.AddHostedService<MailReminderWorker>();
 
-// CORS (frontend tilladt origin i dev)
+// CORS: API only accepts configured frontend origins.
+// Production should set Cors:AllowedOrigins to the real frontend domain.
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+    if (allowedOrigins.Length == 0)
+        throw new InvalidOperationException("Cors:AllowedOrigins must contain at least one allowed origin.");
+
+    options.AddPolicy("FrontendOnly", policy =>
     {
-        policy.WithOrigins("http://localhost:5102")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -57,6 +227,43 @@ var app = builder.Build();
 // =========================================================
 // Middleware pipeline (rækkefølgen betyder noget)
 // =========================================================
+
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var exceptionFeature = context.Features.Get<IExceptionHandlerPathFeature>();
+        var logger = context.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("GlobalExceptionHandler");
+
+        logger.LogError(
+            exceptionFeature?.Error,
+            "Unhandled exception while processing {Method} {Path}. TraceId: {TraceId}",
+            context.Request.Method,
+            exceptionFeature?.Path ?? context.Request.Path.Value,
+            context.TraceIdentifier);
+
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new
+        {
+            message = "Der skete en serverfejl. Prøv igen om lidt.",
+            traceId = context.TraceIdentifier
+        });
+    });
+});
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.TryAdd("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
+    context.Response.Headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    context.Response.Headers.TryAdd("X-Permitted-Cross-Domain-Policies", "none");
+
+    await next();
+});
 
 // Swagger kun i development
 if (app.Environment.IsDevelopment())
@@ -72,16 +279,38 @@ app.UseStaticFiles();
 app.UseHttpsRedirection();
 
 // CORS (skal ligge før MapControllers så den gælder for API endpoints)
-app.UseCors();
+app.UseCors("FrontendOnly");
 
 // Auth middleware
-// OBS: UseAuthentication gør i praksis ingenting før du har builder.Services.AddAuthentication(...)
-// Men det er fint at lade den stå, hvis du planlægger auth senere.
 app.UseAuthentication();
+
+// Rate limiting for selected endpoints (login/upload)
+app.UseRateLimiter();
+
 app.UseAuthorization();
 
 
 // Map controllers (api/*)
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "Healthy",
+    timestamp = DateTimeOffset.UtcNow
+})).AllowAnonymous();
+
 app.MapControllers();
 
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    await scope.ServiceProvider.GetRequiredService<IdentityDataInitializer>().InitializeAsync();
+}
+
 app.Run();
+
+static string GetClientIp(HttpContext context)
+    => $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+
+static string? GetAuthenticatedUserId(HttpContext context)
+{
+    var userId = context.User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+    return string.IsNullOrWhiteSpace(userId) ? null : $"user:{userId}";
+}

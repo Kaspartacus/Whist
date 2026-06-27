@@ -7,19 +7,24 @@
 
 @inject IUserService UserService
 @inject IAuthService AuthService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <div class="top-bar">
     <h2>Medlemmer</h2>
 
-    @* Kun loggede brugere må tilføje/redigere/slette *@
-    @if (CurrentUser is not null)
-    {
-        <button class="btn-add" @onclick="OpenAddUserModal">+ Tilføj medlem</button>
-    }
+    @* Alle loggede brugere må oprette nye medlemmer. *@
+    <AuthorizeView>
+        <Authorized>
+            <button class="btn-add" @onclick="OpenAddUserModal">+ Tilføj medlem</button>
+        </Authorized>
+    </AuthorizeView>
 </div>
 
 @* Modal/component til opret/redigér *@
-<AddUserComponent @ref="addUserComponent" OnUserAdded="ReloadUsers" />
+<AddUserComponent @ref="addUserComponent"
+                  OnUserAdded="ReloadUsers"
+                  CurrentUserId="CurrentUser?.Id"
+                  IsAdmin="IsAdmin" />
 
 <div class="page-container">
     @foreach (var user in Users)
@@ -35,8 +40,8 @@
                 <div class="user-name"><strong>@user.Name</strong></div>
                 <div class="user-nickname">"@user.NickName"</div>
 
-                @if (CurrentUser is not null)
-                {
+                <AuthorizeView>
+                    <Authorized>
                     <div class="user-contact">
                         <div class="contact-row">
                             <i class="bi bi-envelope"></i>
@@ -53,7 +58,8 @@
                             <span class="contact-text">@user.Address</span>
                         </div>
                     </div>
-                }
+                    </Authorized>
+                </AuthorizeView>
             </div>
 
             <!-- Højre kolonne: fun fact + beskrivelse + actions -->
@@ -74,11 +80,18 @@
                     <p>@user.Description</p>
                 </div>
 
-                @if (CurrentUser is not null)
+                @if (CanEditUser(user) || CanDeleteUser(user))
                 {
                     <div class="actions">
-                        <button class="icon-button blue" title="Redigér" @onclick="() => EditUser(user)">✏️</button>
-                        <button class="icon-button red" title="Slet" @onclick="() => ConfirmDeleteUser(user)">🗑️</button>
+                        @if (CanEditUser(user))
+                        {
+                            <button class="icon-button blue" title="Redigér" @onclick="() => EditUser(user)">✏️</button>
+                        }
+
+                        @if (CanDeleteUser(user))
+                        {
+                            <button class="icon-button red" title="Slet" @onclick="() => ConfirmDeleteUser(user)">🗑️</button>
+                        }
                     </div>
                 }
             </div>
@@ -98,6 +111,7 @@
     // =========================
     private List<User> Users = new();
     private User? CurrentUser;
+    private bool IsAdmin;
 
     private AddUserComponent? addUserComponent;
 
@@ -111,6 +125,9 @@
     protected override async Task OnInitializedAsync()
     {
         CurrentUser = await AuthService.GetCurrentUser();
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        IsAdmin = authState.User.IsInRole("Admin");
+
         await LoadUsers();
     }
 
@@ -127,6 +144,15 @@
         await LoadUsers();
         await InvokeAsync(StateHasChanged);
     }
+
+    private bool IsOwnUser(User user)
+        => CurrentUser?.Id == user.Id;
+
+    private bool CanEditUser(User user)
+        => IsAdmin || IsOwnUser(user);
+
+    private bool CanDeleteUser(User user)
+        => IsOwnUser(user) ? !IsAdmin : IsAdmin;
 
     // =========================
     // UI actions

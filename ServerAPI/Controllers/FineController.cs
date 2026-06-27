@@ -14,13 +14,15 @@ namespace ServerAPI.Controllers;
 public class FineController : ControllerBase
 {
     private readonly IFineRepository _fineRepository;
+    private readonly ILogger<FineController> _logger;
 
     /// <summary>
     /// Repository injiceres via DI.
     /// </summary>
-    public FineController(IFineRepository fineRepository)
+    public FineController(IFineRepository fineRepository, ILogger<FineController> logger)
     {
         _fineRepository = fineRepository;
+        _logger = logger;
     }
 
     // =========================
@@ -31,6 +33,7 @@ public class FineController : ControllerBase
     /// Henter alle bøder (på tværs af brugere).
     /// Bruges primært til overblik/summary i UI.
     /// </summary>
+    [AllowAnonymous]
     [HttpGet]
     public ActionResult<Fine[]> GetAll()
     {
@@ -40,6 +43,7 @@ public class FineController : ControllerBase
     /// <summary>
     /// Henter alle bøder for en bestemt bruger.
     /// </summary>
+    [AllowAnonymous]
     [HttpGet("user/{userId}")]
     public ActionResult<Fine[]> GetByUserId(int userId)
     {
@@ -50,6 +54,7 @@ public class FineController : ControllerBase
     /// Henter bøder pagineret (server-side paging).
     /// Fordel: UI kan vise tabel uden at hente alt.
     /// </summary>
+    [AllowAnonymous]
     [HttpGet("paged")]
     public ActionResult<PagedResult<Fine>> GetPaged(
         [FromQuery] int page = 1,
@@ -78,9 +83,26 @@ public class FineController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize]
-    public IActionResult Add(Fine fine)
+    public IActionResult Add(SaveFineRequest request)
     {
+        if (request.UserId <= 0)
+            return BadRequest(new { message = "Bruger er påkrævet." });
+
+        var fine = new Fine
+        {
+            UserId = request.UserId,
+            Amount = request.Amount,
+            Comment = request.Comment?.Trim() ?? "",
+            IsPaid = request.IsPaid
+        };
+
         _fineRepository.AddFine(fine);
+        _logger.LogInformation(
+            "Fine {FineId} was created for user {TargetUserId} by user {ActorUserId}. Amount: {Amount}.",
+            fine.Id,
+            fine.UserId,
+            GetCurrentUserId(),
+            fine.Amount);
         return Ok();
     }
 
@@ -89,9 +111,35 @@ public class FineController : ControllerBase
     /// </summary>
     [HttpPut]
     [Authorize]
-    public IActionResult Update(Fine fine)
+    public IActionResult Update(SaveFineRequest request)
     {
+        if (request.UserId <= 0)
+            return BadRequest(new { message = "Bruger er påkrævet." });
+
+        if (request.Id <= 0)
+            return BadRequest(new { message = "Bøde-id er ugyldigt." });
+
+        if (request.Date is null || request.Date.Value == default)
+            return BadRequest(new { message = "Dato er ugyldig." });
+
+        var fine = new Fine
+        {
+            Id = request.Id,
+            UserId = request.UserId,
+            Amount = request.Amount,
+            Comment = request.Comment?.Trim() ?? "",
+            Date = request.Date.Value,
+            IsPaid = request.IsPaid
+        };
+
         _fineRepository.Update(fine);
+        _logger.LogInformation(
+            "Fine {FineId} for user {TargetUserId} was updated by user {ActorUserId}. Paid: {IsPaid}. Amount: {Amount}.",
+            fine.Id,
+            fine.UserId,
+            GetCurrentUserId(),
+            fine.IsPaid,
+            fine.Amount);
         return Ok();
     }
 
@@ -103,6 +151,17 @@ public class FineController : ControllerBase
     public IActionResult Delete(int userId, int id)
     {
         _fineRepository.Delete(userId, id);
+        _logger.LogInformation(
+            "Fine {FineId} for user {TargetUserId} was deleted by user {ActorUserId}.",
+            id,
+            userId,
+            GetCurrentUserId());
         return Ok();
+    }
+
+    private int? GetCurrentUserId()
+    {
+        var value = User.FindFirst("sub")?.Value;
+        return int.TryParse(value, out var id) ? id : null;
     }
 }

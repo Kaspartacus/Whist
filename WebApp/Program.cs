@@ -1,4 +1,4 @@
-using Blazored.LocalStorage;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 
@@ -22,27 +22,37 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 // ------------------------------------------------------------
-// 3rd party / browser storage
+// Authorization / browser token storage
 // ------------------------------------------------------------
-builder.Services.AddBlazoredLocalStorage();
+builder.Services.AddAuthorizationCore();
+builder.Services.AddScoped<TokenStorage>();
+builder.Services.AddScoped<JwtAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(
+    provider => provider.GetRequiredService<JwtAuthenticationStateProvider>());
+builder.Services.AddScoped<BearerTokenHandler>();
 
 // ------------------------------------------------------------
 // HttpClient (API base address)
-// OBS: Dette er hardcoded til localhost (dev).
 // ------------------------------------------------------------
-builder.Services.AddScoped(_ =>
-    new HttpClient
+builder.Services.AddScoped(provider =>
+{
+    var apiBaseUrl = builder.Configuration["ApiBaseUrl"];
+    if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        throw new InvalidOperationException("ApiBaseUrl is required.");
+
+    var handler = provider.GetRequiredService<BearerTokenHandler>();
+    handler.InnerHandler = new HttpClientHandler();
+    return new HttpClient(handler)
     {
-        BaseAddress = new Uri("http://localhost:5176/")
-    });
+        BaseAddress = new Uri(apiBaseUrl)
+    };
+});
 
 // ------------------------------------------------------------
 // DI: Services (frontend -> kalder backend API)
 // ------------------------------------------------------------
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-
-// NOTE: Fine bruger mock lige nu (som du også har haft i flowet).
 builder.Services.AddScoped<IFineService, FineService>();
 
 builder.Services.AddScoped<IHighlightService, HighlightService>();
