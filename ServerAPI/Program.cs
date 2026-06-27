@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using ServerAPI.Auth;
+using ServerAPI.Configuration;
 using ServerAPI.Repositories.Calendars;
 using ServerAPI.Repositories.Fines;
 using ServerAPI.Repositories.Highlights;
@@ -28,20 +29,19 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Repositories (MongoDB implementeringer)
-// Singleton er ok her, så længe dine repos bruger thread-safe MongoClient (typisk).
-builder.Services.AddSingleton<IFineRepository, FineRepositoryMongoDB>();
-builder.Services.AddSingleton<IHighlightRepository, HighlightRepositoryMongoDB>();
-builder.Services.AddSingleton<IRuleRepository, RuleRepositoryMongoDB>();
-builder.Services.AddSingleton<ICalendarRepository, CalendarRepositoryMongoDB>();
-builder.Services.AddSingleton<IPointRepository, PointRepositoryMongoDB>();
+// Persistence
+builder.Services.AddSingleton<CosmosDbContext>();
+builder.Services.AddSingleton<IFineRepository, FineRepositoryCosmosDb>();
+builder.Services.AddSingleton<IHighlightRepository, HighlightRepositoryCosmosDb>();
+builder.Services.AddSingleton<IRuleRepository, RuleRepositoryCosmosDb>();
+builder.Services.AddSingleton<ICalendarRepository, CalendarRepositoryCosmosDb>();
+builder.Services.AddSingleton<IPointRepository, PointRepositoryCosmosDb>();
 
-builder.Services.AddSingleton<MongoIdentityContext>();
-builder.Services.AddScoped<IUserStore<ApplicationUser>, MongoUserStore>();
-builder.Services.AddScoped<IRoleStore<ApplicationRole>, MongoRoleStore>();
+builder.Services.AddScoped<IUserStore<ApplicationUser>, CosmosUserStore>();
+builder.Services.AddScoped<IRoleStore<ApplicationRole>, CosmosRoleStore>();
 builder.Services.AddScoped<IdentityDataInitializer>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
-builder.Services.AddScoped<IRefreshTokenStore, MongoRefreshTokenStore>();
+builder.Services.AddScoped<IRefreshTokenStore, CosmosRefreshTokenStore>();
 builder.Services.AddScoped<RefreshTokenService>();
 
 builder.Services

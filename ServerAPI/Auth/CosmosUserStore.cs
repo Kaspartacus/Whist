@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Identity;
-using MongoDB.Driver;
+using ServerAPI.Configuration;
 
 namespace ServerAPI.Auth;
 
-public sealed class MongoUserStore :
+public sealed class CosmosUserStore :
     IUserStore<ApplicationUser>,
     IUserPasswordStore<ApplicationUser>,
     IUserEmailStore<ApplicationUser>,
@@ -11,32 +11,34 @@ public sealed class MongoUserStore :
     IUserRoleStore<ApplicationUser>,
     IUserLockoutStore<ApplicationUser>
 {
-    private readonly IMongoCollection<ApplicationUser> _users;
+    private readonly CosmosDbContext _cosmos;
 
-    public MongoUserStore(MongoIdentityContext context) => _users = context.Users;
+    public CosmosUserStore(CosmosDbContext cosmos) => _cosmos = cosmos;
 
     public void Dispose() { }
 
     public async Task<IdentityResult> CreateAsync(ApplicationUser user, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        await _users.InsertOneAsync(user, cancellationToken: cancellationToken);
+        await CosmosDbContext.UpsertAsync(_cosmos.Users, user.Id.ToString(), user, cancellationToken);
         return IdentityResult.Success;
     }
 
     public async Task<IdentityResult> UpdateAsync(ApplicationUser user, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var result = await _users.ReplaceOneAsync(item => item.Id == user.Id, user, cancellationToken: cancellationToken);
-        return result.MatchedCount == 1
-            ? IdentityResult.Success
-            : IdentityResult.Failed(new IdentityError { Code = "UserNotFound", Description = "User was not found." });
+        var existing = await FindByIdAsync(user.Id.ToString(), cancellationToken);
+        if (existing is null)
+            return IdentityResult.Failed(new IdentityError { Code = "UserNotFound", Description = "User was not found." });
+
+        await CosmosDbContext.UpsertAsync(_cosmos.Users, user.Id.ToString(), user, cancellationToken);
+        return IdentityResult.Success;
     }
 
     public async Task<IdentityResult> DeleteAsync(ApplicationUser user, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        await _users.DeleteOneAsync(item => item.Id == user.Id, cancellationToken);
+        await CosmosDbContext.DeleteAsync(_cosmos.Users, user.Id.ToString(), cancellationToken);
         return IdentityResult.Success;
     }
 
@@ -66,11 +68,12 @@ public sealed class MongoUserStore :
         if (!int.TryParse(userId, out var id))
             return null;
 
-        return await _users.Find(user => user.Id == id).FirstOrDefaultAsync(cancellationToken);
+        return await CosmosDbContext.ReadByDocumentIdAsync<ApplicationUser>(_cosmos.Users, id.ToString(), cancellationToken);
     }
 
     public async Task<ApplicationUser?> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
-        => await _users.Find(user => user.NormalizedUserName == normalizedUserName).FirstOrDefaultAsync(cancellationToken);
+        => (await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users, cancellationToken))
+            .FirstOrDefault(user => user.NormalizedUserName == normalizedUserName);
 
     public Task SetPasswordHashAsync(ApplicationUser user, string? passwordHash, CancellationToken cancellationToken)
     {
@@ -103,7 +106,8 @@ public sealed class MongoUserStore :
     }
 
     public async Task<ApplicationUser?> FindByEmailAsync(string normalizedEmail, CancellationToken cancellationToken)
-        => await _users.Find(user => user.NormalizedEmail == normalizedEmail).FirstOrDefaultAsync(cancellationToken);
+        => (await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users, cancellationToken))
+            .FirstOrDefault(user => user.NormalizedEmail == normalizedEmail);
 
     public Task<string?> GetNormalizedEmailAsync(ApplicationUser user, CancellationToken cancellationToken)
         => Task.FromResult(user.NormalizedEmail);
@@ -144,7 +148,9 @@ public sealed class MongoUserStore :
         => Task.FromResult(user.Roles.Contains(CanonicalRole(roleName), StringComparer.OrdinalIgnoreCase));
 
     public async Task<IList<ApplicationUser>> GetUsersInRoleAsync(string roleName, CancellationToken cancellationToken)
-        => await _users.Find(user => user.Roles.Contains(CanonicalRole(roleName))).ToListAsync(cancellationToken);
+        => (await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users, cancellationToken))
+            .Where(user => user.Roles.Contains(CanonicalRole(roleName), StringComparer.OrdinalIgnoreCase))
+            .ToList();
 
     public Task<DateTimeOffset?> GetLockoutEndDateAsync(ApplicationUser user, CancellationToken cancellationToken)
         => Task.FromResult(user.LockoutEnd);

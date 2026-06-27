@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Identity;
-using MongoDB.Driver;
+using ServerAPI.Configuration;
 
 namespace ServerAPI.Auth;
 
-public sealed class MongoRoleStore : IRoleStore<ApplicationRole>
+public sealed class CosmosRoleStore : IRoleStore<ApplicationRole>
 {
-    private readonly IMongoCollection<ApplicationRole> _roles;
+    private readonly CosmosDbContext _cosmos;
 
-    public MongoRoleStore(MongoIdentityContext context) => _roles = context.Roles;
+    public CosmosRoleStore(CosmosDbContext cosmos) => _cosmos = cosmos;
 
     public void Dispose() { }
 
@@ -15,23 +15,25 @@ public sealed class MongoRoleStore : IRoleStore<ApplicationRole>
     {
         if (role.Id == 0)
         {
-            var lastRole = await _roles.Find(_ => true).SortByDescending(item => item.Id).FirstOrDefaultAsync(cancellationToken);
+            var lastRole = (await CosmosDbContext.ReadAllAsync<ApplicationRole>(_cosmos.Roles, cancellationToken))
+                .OrderByDescending(item => item.Id)
+                .FirstOrDefault();
             role.Id = (lastRole?.Id ?? 0) + 1;
         }
 
-        await _roles.InsertOneAsync(role, cancellationToken: cancellationToken);
+        await CosmosDbContext.UpsertAsync(_cosmos.Roles, role.Id.ToString(), role, cancellationToken);
         return IdentityResult.Success;
     }
 
     public async Task<IdentityResult> UpdateAsync(ApplicationRole role, CancellationToken cancellationToken)
     {
-        await _roles.ReplaceOneAsync(item => item.Id == role.Id, role, cancellationToken: cancellationToken);
+        await CosmosDbContext.UpsertAsync(_cosmos.Roles, role.Id.ToString(), role, cancellationToken);
         return IdentityResult.Success;
     }
 
     public async Task<IdentityResult> DeleteAsync(ApplicationRole role, CancellationToken cancellationToken)
     {
-        await _roles.DeleteOneAsync(item => item.Id == role.Id, cancellationToken);
+        await CosmosDbContext.DeleteAsync(_cosmos.Roles, role.Id.ToString(), cancellationToken);
         return IdentityResult.Success;
     }
 
@@ -61,9 +63,10 @@ public sealed class MongoRoleStore : IRoleStore<ApplicationRole>
         if (!int.TryParse(roleId, out var id))
             return null;
 
-        return await _roles.Find(role => role.Id == id).FirstOrDefaultAsync(cancellationToken);
+        return await CosmosDbContext.ReadByDocumentIdAsync<ApplicationRole>(_cosmos.Roles, id.ToString(), cancellationToken);
     }
 
     public async Task<ApplicationRole?> FindByNameAsync(string normalizedRoleName, CancellationToken cancellationToken)
-        => await _roles.Find(role => role.NormalizedName == normalizedRoleName).FirstOrDefaultAsync(cancellationToken);
+        => (await CosmosDbContext.ReadAllAsync<ApplicationRole>(_cosmos.Roles, cancellationToken))
+            .FirstOrDefault(role => role.NormalizedName == normalizedRoleName);
 }

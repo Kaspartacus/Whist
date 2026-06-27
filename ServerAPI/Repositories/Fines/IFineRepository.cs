@@ -4,7 +4,7 @@ namespace ServerAPI.Repositories.Fines;
 
 /// <summary>
 /// Repository-kontrakt for bøder.
-/// I denne løsning ligger bøder som en liste på User-dokumentet i MongoDB.
+/// I denne løsning ligger bøder som en liste på User-dokumentet i databasen.
 /// </summary>
 public interface IFineRepository
 {

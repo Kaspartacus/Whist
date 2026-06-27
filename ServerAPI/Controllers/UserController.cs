@@ -2,8 +2,8 @@ using Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using MongoDB.Driver;
 using ServerAPI.Auth;
+using ServerAPI.Configuration;
 
 namespace ServerAPI.Controllers;
 
@@ -13,20 +13,20 @@ public sealed class UserController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IRefreshTokenStore _refreshTokenStore;
-    private readonly MongoIdentityContext _context;
+    private readonly CosmosDbContext _cosmos;
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<UserController> _logger;
 
     public UserController(
         UserManager<ApplicationUser> userManager,
         IRefreshTokenStore refreshTokenStore,
-        MongoIdentityContext context,
+        CosmosDbContext cosmos,
         IWebHostEnvironment environment,
         ILogger<UserController> logger)
     {
         _userManager = userManager;
         _refreshTokenStore = refreshTokenStore;
-        _context = context;
+        _cosmos = cosmos;
         _environment = environment;
         _logger = logger;
     }
@@ -35,7 +35,7 @@ public sealed class UserController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<User[]>> GetAll(CancellationToken cancellationToken)
     {
-        var users = await _context.Users.Find(_ => true).ToListAsync(cancellationToken);
+        var users = await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users, cancellationToken);
         var includePrivateContactData = User.Identity?.IsAuthenticated == true;
         return Ok(users.Select(user => ToDto(user, includePrivateContactData)).ToArray());
     }
@@ -44,7 +44,7 @@ public sealed class UserController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<User>> GetById(int id, CancellationToken cancellationToken)
     {
-        var user = await _context.Users.Find(item => item.Id == id).FirstOrDefaultAsync(cancellationToken);
+        var user = await CosmosDbContext.ReadByDocumentIdAsync<ApplicationUser>(_cosmos.Users, id.ToString(), cancellationToken);
         return user is null
             ? NotFound()
             : Ok(ToDto(user, User.Identity?.IsAuthenticated == true));
@@ -60,9 +60,8 @@ public sealed class UserController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Password))
             return BadRequest(new { message = "Adgangskode er påkrævet." });
 
-        var lastUser = await _context.Users.Find(_ => true)
-            .SortByDescending(user => user.Id)
-            .FirstOrDefaultAsync(cancellationToken);
+        var existingUsers = await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users, cancellationToken);
+        var lastUser = existingUsers.MaxBy(user => user.Id);
 
         var user = new ApplicationUser
         {
