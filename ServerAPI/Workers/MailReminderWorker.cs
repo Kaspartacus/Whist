@@ -18,19 +18,16 @@ namespace ServerAPI.Workers;
 public class MailReminderWorker : BackgroundService
 {
     private readonly ILogger<MailReminderWorker> _log;
-    private readonly ICalendarRepository _calRepo;
-    private readonly CosmosDbContext _cosmos;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _config;
 
     public MailReminderWorker(
         ILogger<MailReminderWorker> log,
-        ICalendarRepository calRepo,
-        CosmosDbContext cosmos,
+        IServiceScopeFactory scopeFactory,
         IConfiguration config)
     {
         _log = log;
-        _calRepo = calRepo;
-        _cosmos = cosmos;
+        _scopeFactory = scopeFactory;
         _config = config;
     }
 
@@ -67,10 +64,14 @@ public class MailReminderWorker : BackgroundService
 
     private async Task RunOnce(CancellationToken ct)
     {
+        using var scope = _scopeFactory.CreateScope();
+        var cosmos = scope.ServiceProvider.GetRequiredService<CosmosDbContext>();
+        var calRepo = scope.ServiceProvider.GetRequiredService<ICalendarRepository>();
+
         var today = DateOnly.FromDateTime(DateTime.Now);
 
         // 1) Hent modtagere (bruges til både fødselsdage og events)
-        var users = (await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users, ct))
+        var users = (await CosmosDbContext.ReadAllAsync<ApplicationUser>(cosmos.Users, ct))
             .Where(user => !string.IsNullOrWhiteSpace(user.Email))
             .ToList();
 
@@ -156,7 +157,7 @@ Du ønskes en god dag fra hele Whist holdet
         // --------------------------
         // B) Event reminders (+2 dage)
         // --------------------------
-        var eventsInTwoDays = await _calRepo.FindByExactOffsetDays(2);
+        var eventsInTwoDays = await calRepo.FindByExactOffsetDays(2);
 
         if (eventsInTwoDays.Count == 0)
         {
@@ -222,7 +223,7 @@ Du ønskes en god dag fra hele Whist holdet
         }
 
         // Markér alle events som sendt i ét batch-kald (bedre performance)
-        await _calRepo.MarkRemindersSent(eventsInTwoDays.Select(e => e.Id));
+        await calRepo.MarkRemindersSent(eventsInTwoDays.Select(e => e.Id));
 
         _log.LogInformation(
             "ReminderWorker sendte {Sent} mails for {Events} events. (Inkl. evt. fødselsdage).",
