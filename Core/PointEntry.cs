@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Core;
 
 /// <summary>
@@ -10,9 +12,11 @@ public class PointEntry
     public int Id { get; set; }
 
     /// <summary>ID på spilleren (User).</summary>
+    [Range(1, int.MaxValue)]
     public int PlayerId { get; set; }
 
     /// <summary>Point der tildeles (kan være positiv eller negativ).</summary>
+    [Range(-3000, 3000)]
     public int Points { get; set; }
 
     /// <summary>Hvornår pointene blev tildelt.</summary>

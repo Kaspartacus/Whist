@@ -1,25 +1,22 @@
 using Core;
 using System.Net.Http.Json;
-using WebApp.Service.AuthServices;
+using WebApp.Service.ApiErrors;
 
 namespace WebApp.Service.FineServices;
 
 /// <summary>
 /// Implementation af IFineService via HttpClient.
-/// OBS: Klassen hedder "Mock", men kalder et rigtigt API (det er bare navnet i projektet).
 /// </summary>
 public class FineService : IFineService
 {
     private readonly HttpClient _http;
-    private readonly IAuthService _auth;
 
     /// <summary>
     /// HttpClient er typisk konfigureret i DI med BaseAddress mod din ServerAPI.
     /// </summary>
-    public FineService(HttpClient http, IAuthService auth)
+    public FineService(HttpClient http)
     {
         _http = http;
-        _auth = auth;
     }
 
     /// <inheritdoc />
@@ -40,27 +37,24 @@ public class FineService : IFineService
     public async Task Add(Fine fine)
     {
         // Opretter en ny bøde i backend.
-        await AddDevKeyHeaderIfLoggedIn();
-        var res = await _http.PostAsJsonAsync("api/fine", fine);
-        res.EnsureSuccessStatusCode();
+        var res = await _http.PostAsJsonAsync("api/fine", ToSaveRequest(fine));
+        await res.EnsureSuccessWithApiMessageAsync();
     }
 
     /// <inheritdoc />
     public async Task Update(Fine fine)
     {
         // Opdaterer en bøde i backend.
-        await AddDevKeyHeaderIfLoggedIn();
-        var res = await _http.PutAsJsonAsync("api/fine", fine);
-        res.EnsureSuccessStatusCode();
+        var res = await _http.PutAsJsonAsync("api/fine", ToSaveRequest(fine));
+        await res.EnsureSuccessWithApiMessageAsync();
     }
 
     /// <inheritdoc />
     public async Task Delete(int userId, int id)
     {
         // Sletter en bøde for en given bruger.
-        await AddDevKeyHeaderIfLoggedIn();
         var res = await _http.DeleteAsync($"api/fine/user/{userId}/{id}");
-        res.EnsureSuccessStatusCode();
+        await res.EnsureSuccessWithApiMessageAsync();
     }
 
     /// <inheritdoc />
@@ -81,15 +75,14 @@ public class FineService : IFineService
 
         return _http.GetFromJsonAsync<PagedResult<Fine>>(url)!;
     }
-    
-    // Helper til authentication
-    private async Task AddDevKeyHeaderIfLoggedIn()
+
+    private static SaveFineRequest ToSaveRequest(Fine fine) => new()
     {
-        var user = await _auth.GetCurrentUser();
-        _http.DefaultRequestHeaders.Remove("X-Whist-Key");
-
-        if (user is not null)
-            _http.DefaultRequestHeaders.Add("X-Whist-Key", "whist-dev-key");
-    }
-
+        Id = fine.Id,
+        UserId = fine.UserId,
+        Amount = fine.Amount,
+        Comment = fine.Comment,
+        Date = fine.Date,
+        IsPaid = fine.IsPaid
+    };
 }

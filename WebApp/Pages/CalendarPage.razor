@@ -65,7 +65,7 @@
         var isToday = date.Date == DateTime.Today;
         var cellClass = isToday ? "day-cell today" : "day-cell";
 
-        <div class="@cellClass" @onclick="@(CurrentUser is not null ? (() => SelectDate(date)) : null)">
+        <div class="@cellClass" @onclick="() => SelectDate(date)">
             <div class="day-number">@day</div>
 
             @if (EventDates.TryGetValue(date.Date, out var note))
@@ -127,10 +127,11 @@
                     <tr>
                         <th>Dato</th>
                         <th>Note</th>
-                        @if (CurrentUser is not null)
-                        {
-                            <th></th>
-                        }
+                        <AuthorizeView>
+                            <Authorized>
+                                <th></th>
+                            </Authorized>
+                        </AuthorizeView>
                     </tr>
                     </thead>
 
@@ -140,13 +141,14 @@
                         <tr>
                             <td>@evt.Key.ToString("dd.MM.yyyy")</td>
                             <td class="event-note-cell">@evt.Value</td>
-                            @if (CurrentUser is not null)
-                            {
-                                <td class="event-actions-cell">
-                                    <button class="icon-button blue" @onclick="() => EditEvent(evt.Key)">✏️</button>
-                                    <button class="icon-button red" @onclick="() => RequestDelete(evt.Key)">🗑️</button>
-                                </td>
-                            }
+                            <AuthorizeView>
+                                <Authorized>
+                                    <td class="event-actions-cell">
+                                        <button class="icon-button blue" @onclick="() => EditEvent(evt.Key)">✏️</button>
+                                        <button class="icon-button red" @onclick="() => RequestDelete(evt.Key)">🗑️</button>
+                                    </td>
+                                </Authorized>
+                            </AuthorizeView>
                         </tr>
                     }
                     </tbody>
@@ -176,10 +178,11 @@
                     <tr>
                         <th>Dato</th>
                         <th>Note</th>
-                        @if (CurrentUser is not null)
-                        {
-                            <th></th>
-                        }
+                        <AuthorizeView>
+                            <Authorized>
+                                <th></th>
+                            </Authorized>
+                        </AuthorizeView>
                     </tr>
                     </thead>
 
@@ -189,13 +192,14 @@
                         <tr>
                             <td>@evt.Key.ToString("dd.MM.yyyy")</td>
                             <td class="event-note-cell">@evt.Value</td>
-                            @if (CurrentUser is not null)
-                            {
-                                <td class="event-actions-cell">
-                                    <button class="icon-button blue" @onclick="() => EditEvent(evt.Key)">✏️</button>
-                                    <button class="icon-button red" @onclick="() => RequestDelete(evt.Key)">🗑️</button>
-                                </td>
-                            }
+                            <AuthorizeView>
+                                <Authorized>
+                                    <td class="event-actions-cell">
+                                        <button class="icon-button blue" @onclick="() => EditEvent(evt.Key)">✏️</button>
+                                        <button class="icon-button red" @onclick="() => RequestDelete(evt.Key)">🗑️</button>
+                                    </td>
+                                </Authorized>
+                            </AuthorizeView>
                         </tr>
                     }
                     </tbody>

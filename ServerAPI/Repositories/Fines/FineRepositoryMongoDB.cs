@@ -1,29 +1,32 @@
 using Core;
 using MongoDB.Driver;
+using ServerAPI.Auth;
+using ServerAPI.Configuration;
 using ServerAPI.Utils;
 
 namespace ServerAPI.Repositories.Fines;
 
 /// <summary>
 /// MongoDB implementation af IFineRepository.
-/// Her ligger bøder som en "embedded list" på User-dokumentet:
-///   User { Id, ..., List<Fine> Fines }
+/// Her ligger bøder som en "embedded list" på ApplicationUser-dokumentet:
+///   ApplicationUser { Id, ..., List<Fine> Fines }
 ///
 /// Fordel: simpelt for et lille projekt.
 /// Ulempe: ved store datamængder kan updates blive tungere (read-modify-write på hele user-dokumentet).
 /// </summary>
 public class FineRepositoryMongoDB : IFineRepository
 {
-    private readonly IMongoCollection<User> _users;
+    private readonly IMongoCollection<ApplicationUser> _users;
+    private readonly ILogger<FineRepositoryMongoDB> _logger;
 
     /// <summary>
     /// Opretter forbindelse til MongoDB baseret på appsettings.
     /// </summary>
-    public FineRepositoryMongoDB(IConfiguration config)
+    public FineRepositoryMongoDB(IConfiguration config, ILogger<FineRepositoryMongoDB> logger)
     {
-        var client = new MongoClient(config["MongoDbSettings:ConnectionString"]);
-        var db = client.GetDatabase(config["MongoDbSettings:DatabaseName"]);
-        _users = db.GetCollection<User>("users");
+        _logger = logger;
+        var db = MongoDatabaseFactory.Create(config);
+        _users = db.GetCollection<ApplicationUser>("users");
     }
 
     // =========================
@@ -73,7 +76,11 @@ public class FineRepositoryMongoDB : IFineRepository
     {
         // Find brugeren som bøden tilhører.
         var user = _users.Find(u => u.Id == fine.UserId).FirstOrDefault();
-        if (user == null) return;
+        if (user == null)
+        {
+            _logger.LogWarning("Fine was not created because user {UserId} was not found.", fine.UserId);
+            return;
+        }
 
         // ID genereres som "max + 1" indenfor brugerens fines.
         // (Fungerer fint for jeres use case med få brugere)
@@ -83,7 +90,7 @@ public class FineRepositoryMongoDB : IFineRepository
         fine.Date = DateTime.Now;
 
         // Automatisk: erstatter "KSDH" med BIF<3.
-        TextAutoReplace.Apply(fine);
+        TextAutoReplace.Apply(fine, _logger);
         
         user.Fines.Add(fine);
 
@@ -103,7 +110,11 @@ public class FineRepositoryMongoDB : IFineRepository
     {
         // Find brugeren og opdater bøden i deres fines-liste.
         var user = _users.Find(u => u.Id == fine.UserId).FirstOrDefault();
-        if (user == null) return;
+        if (user == null)
+        {
+            _logger.LogWarning("Fine {FineId} was not updated because user {UserId} was not found.", fine.Id, fine.UserId);
+            return;
+        }
 
         var finesList = user.Fines.ToList();
         var index = finesList.FindIndex(f => f.Id == fine.Id);
@@ -111,12 +122,16 @@ public class FineRepositoryMongoDB : IFineRepository
         if (index >= 0)
         {
             // Automatisk: erstatter "KSDH" med BIF<3.
-            TextAutoReplace.Apply(fine);
+            TextAutoReplace.Apply(fine, _logger);
             
             finesList[index] = fine;
             user.Fines = finesList;
 
             _users.ReplaceOne(u => u.Id == user.Id, user);
+        }
+        else
+        {
+            _logger.LogWarning("Fine {FineId} was not updated because it was not found for user {UserId}.", fine.Id, fine.UserId);
         }
     }
 
@@ -132,9 +147,18 @@ public class FineRepositoryMongoDB : IFineRepository
     {
         // Find brugeren og fjern bøden fra deres liste.
         var user = _users.Find(u => u.Id == userId).FirstOrDefault();
-        if (user == null) return;
+        if (user == null)
+        {
+            _logger.LogWarning("Fine {FineId} was not deleted because user {UserId} was not found.", id, userId);
+            return;
+        }
+
+        var beforeCount = user.Fines.Count;
 
         user.Fines = user.Fines.Where(f => f.Id != id).ToList();
+        if (user.Fines.Count == beforeCount)
+            _logger.LogWarning("Fine {FineId} was not deleted because it was not found for user {UserId}.", id, userId);
+
         _users.ReplaceOne(u => u.Id == user.Id, user);
     }
 
@@ -163,8 +187,8 @@ public class FineRepositoryMongoDB : IFineRepository
         var skip = (page - 1) * pageSize;
 
         var userFilter = userId.HasValue
-            ? Builders<User>.Filter.Eq(u => u.Id, userId.Value)
-            : Builders<User>.Filter.Empty;
+            ? Builders<ApplicationUser>.Filter.Eq(u => u.Id, userId.Value)
+            : Builders<ApplicationUser>.Filter.Empty;
 
         // 1) Hvis vi søger på navn, så find userIds der matcher (case-insensitive)
         HashSet<int>? matchedUserIds = null;
@@ -229,7 +253,7 @@ public class FineRepositoryMongoDB : IFineRepository
         // 3) TotalCount: count efter samme filtre
         var totalCount = _users.Aggregate()
             .Match(userFilter)
-            .Unwind<User, FineWrapper>(u => u.Fines)
+            .Unwind<ApplicationUser, FineWrapper>(u => u.Fines)
             .Match(fineFilter)
             .Count()
             .FirstOrDefault()
@@ -238,7 +262,7 @@ public class FineRepositoryMongoDB : IFineRepository
         // 4) Items: match + sort + skip + limit
         var items = _users.Aggregate()
             .Match(userFilter)
-            .Unwind<User, FineWrapper>(u => u.Fines)
+            .Unwind<ApplicationUser, FineWrapper>(u => u.Fines)
             .Match(fineFilter)
             .SortByDescending(fw => fw.Fines.Date)
             .Skip(skip)

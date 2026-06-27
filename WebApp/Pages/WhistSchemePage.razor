@@ -95,10 +95,11 @@
             <h4>Pointoversigt</h4>
 
             @* Kun logget-in bruger kan “tilføje bøder” ud fra point *@
-            @if (_currentUser is not null)
-            {
-                <button class="btn-add" @onclick="ShowAddFinesConfirmation">+ Tilføj bøder</button>
-            }
+            <AuthorizeView>
+                <Authorized>
+                    <button class="btn-add" @onclick="ShowAddFinesConfirmation">+ Tilføj bøder</button>
+                </Authorized>
+            </AuthorizeView>
         </div>
 
         <table class="point-overview-table">
@@ -137,16 +138,29 @@
                         @* Stjerneknap pr. spiller (session-stjerner) *@
                         <div class="star-button-wrapper star-in-table">
                             @* Klik giver en stjerne til spilleren i den aktuelle session *@
-                            <button class="star-button @(_currentUser is null ? "disabled" : "")"
-                                    type="button"
-                                    @onclick="() => AddSessionStar(row.Id)">
-                                ⭐
-                                @* Vis antal stjerner kun når der er mindst 1 *@
-                                @if (GetSessionStars(row.Id) > 0)
-                                {
-                                    <span class="star-count">@GetSessionStars(row.Id)</span>
-                                }
-                            </button>
+                            <AuthorizeView>
+                                <Authorized>
+                                    <button class="star-button"
+                                            type="button"
+                                            @onclick="() => AddSessionStar(row.Id)">
+                                        ⭐
+                                        @* Vis antal stjerner kun når der er mindst 1 *@
+                                        @if (GetSessionStars(row.Id) > 0)
+                                        {
+                                            <span class="star-count">@GetSessionStars(row.Id)</span>
+                                        }
+                                    </button>
+                                </Authorized>
+                                <NotAuthorized>
+                                    <button class="star-button disabled" type="button">
+                                        ⭐
+                                        @if (GetSessionStars(row.Id) > 0)
+                                        {
+                                            <span class="star-count">@GetSessionStars(row.Id)</span>
+                                        }
+                                    </button>
+                                </NotAuthorized>
+                            </AuthorizeView>
                         </div>
                     </td>
                 </tr>

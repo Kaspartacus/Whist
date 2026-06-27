@@ -3,12 +3,19 @@
     Router finder den rigtige page baseret på URL, og viser den i MainLayout.
 *@
 
+<CascadingAuthenticationState>
 <Router AppAssembly="@typeof(App).Assembly">
 
     @* Når en route findes *@
     <Found Context="routeData">
-        @* RouteView renderer den matchende page og wrapper den i MainLayout *@
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        @* AuthorizeRouteView renderer den matchende page og understøtter [Authorize] på routes. *@
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+            <NotAuthorized>
+                <LayoutView Layout="@typeof(MainLayout)">
+                    <p role="alert">Du skal være logget ind for at se denne side.</p>
+                </LayoutView>
+            </NotAuthorized>
+        </AuthorizeRouteView>
 
         @* Flytter fokus ved navigation (godt for tilgængelighed) *@
         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
@@ -24,3 +31,4 @@
     </NotFound>
 
 </Router>
+</CascadingAuthenticationState>

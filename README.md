@@ -34,7 +34,19 @@ Alle kan se data i systemet, men kun loggede brugere kan:
 - redigere
 - slette
 
-Dette håndteres i backend via beskyttede API-endpoints.
+Login valideres i backend med ASP.NET Core Identity. Beskyttede API-kald
+kræver et kortlivet JWT access token. JWT'et indeholder brugerens Identity
+security stamp, så logout, password reset og slettede brugere invaliderer
+gamle tokens server-side.
+
+Den lokale JWT-signeringsnøgle må ikke gemmes i source control. Opret den med:
+
+```bash
+dotnet user-secrets set "Jwt:SigningKey" "<mindst 32 tilfældige tegn>" --project ServerAPI
+```
+
+Brugere skal have et Identity `PasswordHash` i MongoDB. Gamle plaintext
+adgangskoder bruges ikke længere af applikationen.
 
 ## Formål
 

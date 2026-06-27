@@ -16,10 +16,12 @@ namespace WebAPI.Controllers;
 public class PointController : ControllerBase
 {
     private readonly IPointRepository _repository;
+    private readonly ILogger<PointController> _logger;
 
-    public PointController(IPointRepository repository)
+    public PointController(IPointRepository repository, ILogger<PointController> logger)
     {
         _repository = repository;
+        _logger = logger;
     }
 
     // =========================
@@ -30,6 +32,7 @@ public class PointController : ControllerBase
     /// Henter alle point entries.
     /// UI bruger dette til at beregne totals pr. spiller.
     /// </summary>
+    [AllowAnonymous]
     [HttpGet]
     public async Task<ActionResult<List<PointEntry>>> GetAll()
     {
@@ -46,9 +49,31 @@ public class PointController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize]
-    public async Task<ActionResult> Add(PointEntry point)
+    public async Task<ActionResult> Add(CreatePointRequest request)
     {
+        if (request.PlayerId <= 0)
+            return BadRequest(new { message = "Spiller er påkrævet." });
+
+        if (request.Points == 0)
+            return BadRequest(new { message = "Point må ikke være 0." });
+
+        if (request.Date == default)
+            return BadRequest(new { message = "Dato er ugyldig." });
+
+        var point = new PointEntry
+        {
+            PlayerId = request.PlayerId,
+            Points = request.Points,
+            Date = request.Date
+        };
+
         await _repository.Add(point);
+        _logger.LogInformation(
+            "Point entry {PointEntryId} was created for player {PlayerId} by user {ActorUserId}. Points: {Points}.",
+            point.Id,
+            point.PlayerId,
+            GetCurrentUserId(),
+            point.Points);
         return Ok();
     }
 
@@ -60,6 +85,10 @@ public class PointController : ControllerBase
     public async Task<ActionResult> Delete(int id)
     {
         await _repository.Delete(id);
+        _logger.LogInformation(
+            "Point entry {PointEntryId} was deleted by user {ActorUserId}.",
+            id,
+            GetCurrentUserId());
         return Ok();
     }
 
@@ -72,6 +101,15 @@ public class PointController : ControllerBase
     public async Task<ActionResult> DeleteAll()
     {
         await _repository.DeleteAll();
+        _logger.LogWarning(
+            "All point entries were deleted by user {ActorUserId}.",
+            GetCurrentUserId());
         return Ok();
+    }
+
+    private int? GetCurrentUserId()
+    {
+        var value = User.FindFirst("sub")?.Value;
+        return int.TryParse(value, out var userId) ? userId : null;
     }
 }

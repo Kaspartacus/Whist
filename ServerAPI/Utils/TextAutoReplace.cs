@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Core;
+using Microsoft.Extensions.Logging;
 
 namespace ServerAPI.Utils;
 
@@ -18,12 +19,22 @@ public static class TextAutoReplace
         return KsdhRegex.Replace(input, "BIF<3");
     }
 
+    public static string? Apply(string? input, ILogger logger, string fieldName)
+    {
+        if (string.IsNullOrEmpty(input)) return input;
+
+        var updated = Apply(input);
+        if (!string.Equals(input, updated, StringComparison.Ordinal))
+            logger.LogInformation("Text auto-replace applied to {FieldName}.", fieldName);
+
+        return updated;
+    }
+
     // --- Model-specifik helpers (så repos forbliver simple) ---
 
     public static void Apply(User user)
     {
-        // OBS: Jeg ændrer IKKE Email/Password, da det kan ødelægge login.
-        // Hvis du vil have det med, siger du til.
+        // Email and authentication credentials are intentionally handled elsewhere.
         user.Name = Apply(user.Name) ?? "";
         user.NickName = Apply(user.NickName) ?? "";
         user.Address = Apply(user.Address) ?? "";
@@ -37,10 +48,22 @@ public static class TextAutoReplace
         fine.Comment = Apply(fine.Comment) ?? "";
     }
 
+    public static void Apply(Fine fine, ILogger logger)
+    {
+        fine.Comment = Apply(fine.Comment, logger, "Fine.Comment") ?? "";
+    }
+
     public static void Apply(Highlight highlight)
     {
         highlight.Title = Apply(highlight.Title) ?? "";
         highlight.Description = Apply(highlight.Description) ?? "";
+        // ImageUrl lader vi være.
+    }
+
+    public static void Apply(Highlight highlight, ILogger logger)
+    {
+        highlight.Title = Apply(highlight.Title, logger, "Highlight.Title") ?? "";
+        highlight.Description = Apply(highlight.Description, logger, "Highlight.Description") ?? "";
         // ImageUrl lader vi være.
     }
 
@@ -49,8 +72,18 @@ public static class TextAutoReplace
         calendar.Note = Apply(calendar.Note) ?? "";
     }
 
+    public static void Apply(Calendar calendar, ILogger logger)
+    {
+        calendar.Note = Apply(calendar.Note, logger, "Calendar.Note") ?? "";
+    }
+
     public static void Apply(Rule rule)
     {
         rule.Text = Apply(rule.Text) ?? "";
+    }
+
+    public static void Apply(Rule rule, ILogger logger)
+    {
+        rule.Text = Apply(rule.Text, logger, "Rule.Text") ?? "";
     }
 }

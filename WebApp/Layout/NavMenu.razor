@@ -15,10 +15,11 @@
 
         <!-- Desktop links -->
         <div class="desktop-links">
-            @if (_currentUser is not null)
-            {
-                <NavLink class="nav-btn" href="bøder" Match="NavLinkMatch.Prefix">Bøder</NavLink>
-            }
+            <AuthorizeView>
+                <Authorized>
+                    <NavLink class="nav-btn" href="bøder" Match="NavLinkMatch.Prefix">Bøder</NavLink>
+                </Authorized>
+            </AuthorizeView>
 
             <NavLink class="nav-btn" href="highlights" Match="NavLinkMatch.Prefix">Highlights</NavLink>
             <NavLink class="nav-btn" href="medlemmer" Match="NavLinkMatch.Prefix">Medlemmer</NavLink>
@@ -27,19 +28,19 @@
             <NavLink class="nav-btn" href="kalender" Match="NavLinkMatch.Prefix">Kalender</NavLink>
         </div>
 
-        <!-- Desktop login/logout (samme logik som før) -->
-        @if (_currentUser is null)
-        {
-            <button type="button" class="logout-btn desktop-logout login" @onclick="ToggleLogin">
-                Log ind
-            </button>
-        }
-        else
-        {
-            <button type="button" class="logout-btn desktop-logout" @onclick="ToggleLogin">
-                Log ud
-            </button>
-        }
+        <!-- Desktop login/logout -->
+        <AuthorizeView>
+            <Authorized>
+                <button type="button" class="logout-btn desktop-logout" @onclick="Logout">
+                    Log ud
+                </button>
+            </Authorized>
+            <NotAuthorized>
+                <button type="button" class="logout-btn desktop-logout login" @onclick="OpenLogin">
+                    Log ind
+                </button>
+            </NotAuthorized>
+        </AuthorizeView>
 
         <!-- Mobile toggle -->
         <button type="button" class="hamburger" @onclick="ToggleMobileMenu" aria-label="Menu">
@@ -47,15 +48,16 @@
         </button>
     </div>
 
-    <!-- Mobile menu -->
+        <!-- Mobile menu -->
     <div class="mobile-menu @(isMobileOpen ? "open" : "")">
         <div class="mobile-links">
-            @if (_currentUser is not null)
-            {
-                <NavLink class="mobile-btn" href="bøder" Match="NavLinkMatch.Prefix" @onclick="CloseMobileMenu">
-                    Bøder
-                </NavLink>
-            }
+            <AuthorizeView>
+                <Authorized>
+                    <NavLink class="mobile-btn" href="bøder" Match="NavLinkMatch.Prefix" @onclick="CloseMobileMenu">
+                        Bøder
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
 
             <NavLink class="mobile-btn" href="highlights" Match="NavLinkMatch.Prefix" @onclick="CloseMobileMenu">
                 Highlights
@@ -75,54 +77,42 @@
         </div>
 
         <!-- Mobile login/logout -->
-        @if (_currentUser is null)
-        {
-            <button type="button" class="logout-btn mobile-logout login" @onclick="ToggleLogin">
-                Log ind
-            </button>
-        }
-        else
-        {
-            <button type="button" class="logout-btn mobile-logout" @onclick="ToggleLogin">
-                Log ud
-            </button>
-        }
+        <AuthorizeView>
+            <Authorized>
+                <button type="button" class="logout-btn mobile-logout" @onclick="Logout">
+                    Log ud
+                </button>
+            </Authorized>
+            <NotAuthorized>
+                <button type="button" class="logout-btn mobile-logout login" @onclick="OpenLogin">
+                    Log ind
+                </button>
+            </NotAuthorized>
+        </AuthorizeView>
     </div>
 </nav>
 
 @code {
     private LoginComponent? _loginComponent;
-    private User? _currentUser;
     private bool isMobileOpen;
 
-    protected override async Task OnInitializedAsync()
+    private Task HandleLogin()
     {
-        _currentUser = await AuthService.GetCurrentUser();
-    }
-
-    private async Task HandleLogin()
-    {
-        _currentUser = await AuthService.GetCurrentUser();
         StateHasChanged();
+        return Task.CompletedTask;
     }
 
-    private async Task ToggleLogin()
+    private void OpenLogin()
     {
-        // Luk mobilmenu så UI ikke "hænger"
         isMobileOpen = false;
+        _loginComponent?.Show();
+    }
 
-        if (_currentUser is null)
-        {
-            _loginComponent?.Show();
-        }
-        else
-        {
-            await AuthService.Logout();
-            _currentUser = null;
-
-            // som før
-            NavigationManager.NavigateTo("/");
-        }
+    private async Task Logout()
+    {
+        isMobileOpen = false;
+        await AuthService.Logout();
+        NavigationManager.NavigateTo("/");
     }
 
     private void ToggleMobileMenu() => isMobileOpen = !isMobileOpen;

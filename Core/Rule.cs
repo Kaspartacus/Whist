@@ -12,6 +12,7 @@ public class Rule
     public int Id { get; set; }
 
     /// <summary>Selve reglen (maks 500 tegn).</summary>
+    [Required]
     [MaxLength(500)]
     public string Text { get; set; } = string.Empty;
 }

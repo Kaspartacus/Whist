@@ -1,5 +1,6 @@
 using Core;
 using MongoDB.Driver;
+using ServerAPI.Configuration;
 using ServerAPI.Utils;
 
 namespace ServerAPI.Repositories.Rules;
@@ -18,14 +19,15 @@ public class RuleRepositoryMongoDB : IRuleRepository
     private const string CollectionName = "rules";
 
     private readonly IMongoCollection<Rule> _rules;
+    private readonly ILogger<RuleRepositoryMongoDB> _logger;
 
     /// <summary>
     /// Opretter forbindelse til MongoDB baseret på appsettings og initialiserer rules-collection.
     /// </summary>
-    public RuleRepositoryMongoDB(IConfiguration config)
+    public RuleRepositoryMongoDB(IConfiguration config, ILogger<RuleRepositoryMongoDB> logger)
     {
-        var client = new MongoClient(config["MongoDbSettings:ConnectionString"]);
-        var db = client.GetDatabase(config["MongoDbSettings:DatabaseName"]);
+        _logger = logger;
+        var db = MongoDatabaseFactory.Create(config);
         _rules = db.GetCollection<Rule>(CollectionName);
     }
 
@@ -63,7 +65,7 @@ public class RuleRepositoryMongoDB : IRuleRepository
         rule.Id = highest?.Id + 1 ?? 1;
         
         // Automatisk: erstatter "KSDH" med BIF<3.
-        TextAutoReplace.Apply(rule);
+        TextAutoReplace.Apply(rule, _logger);
 
         await _rules.InsertOneAsync(rule);
         return rule;
@@ -75,14 +77,20 @@ public class RuleRepositoryMongoDB : IRuleRepository
     public async Task Update(Rule rule)
     {
         // Automatisk: erstatter "KSDH" med BIF<3.
-        TextAutoReplace.Apply(rule);
+        TextAutoReplace.Apply(rule, _logger);
         
-        await _rules.ReplaceOneAsync(r => r.Id == rule.Id, rule);
+        var result = await _rules.ReplaceOneAsync(r => r.Id == rule.Id, rule);
+        if (result.MatchedCount == 0)
+            _logger.LogWarning("Rule {RuleId} was not updated because it was not found.", rule.Id);
     }
 
     /// <summary>
     /// Sletter en regel ud fra Id.
     /// </summary>
     public async Task Delete(int id)
-        => await _rules.DeleteOneAsync(r => r.Id == id);
+    {
+        var result = await _rules.DeleteOneAsync(r => r.Id == id);
+        if (result.DeletedCount == 0)
+            _logger.LogWarning("Rule {RuleId} was not deleted because it was not found.", id);
+    }
 }

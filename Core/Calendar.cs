@@ -15,6 +15,7 @@ public class Calendar
     public DateTime Date { get; set; }
 
     /// <summary>Tekst/nota for begivenheden.</summary>
+    [Required]
     [MaxLength(100)]
     public string Note { get; set; } = "";
 

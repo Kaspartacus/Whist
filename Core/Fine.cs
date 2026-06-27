@@ -12,6 +12,7 @@ public class Fine
     public int Id { get; set; }
 
     /// <summary>ID på brugeren som bøden tilhører.</summary>
+    [Range(1, int.MaxValue)]
     public int UserId { get; set; }
 
     /// <summary>Beløb (1-500).</summary>

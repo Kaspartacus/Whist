@@ -1,134 +1,280 @@
 using Core;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using ServerAPI.Repositories;
+using MongoDB.Driver;
+using ServerAPI.Auth;
 
 namespace ServerAPI.Controllers;
 
-/// <summary>
-/// API-controller for brugere.
-/// 
-/// Ansvar:
-/// - Eksponere endpoints til UI'et
-/// - Holde controller "tynd": input-validering + kald til repository
-/// 
-/// Bemærk:
-/// - Billed-sletning ligger her, fordi den bruger WebRoot + Request.Host.
-/// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class UserController : ControllerBase
+public sealed class UserController : ControllerBase
 {
-    private readonly IUserRepository _repo;
-    private readonly IWebHostEnvironment _env;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IRefreshTokenStore _refreshTokenStore;
+    private readonly MongoIdentityContext _context;
+    private readonly IWebHostEnvironment _environment;
+    private readonly ILogger<UserController> _logger;
 
-    public UserController(IUserRepository repo, IWebHostEnvironment env)
+    public UserController(
+        UserManager<ApplicationUser> userManager,
+        IRefreshTokenStore refreshTokenStore,
+        MongoIdentityContext context,
+        IWebHostEnvironment environment,
+        ILogger<UserController> logger)
     {
-        _repo = repo;
-        _env = env;
+        _userManager = userManager;
+        _refreshTokenStore = refreshTokenStore;
+        _context = context;
+        _environment = environment;
+        _logger = logger;
     }
 
-    // =========================
-    // READ
-    // =========================
-
-    /// <summary>
-    /// Henter alle brugere.
-    /// </summary>
+    [AllowAnonymous]
     [HttpGet]
-    public ActionResult<User[]> GetAll()
+    public async Task<ActionResult<User[]>> GetAll(CancellationToken cancellationToken)
     {
-        return Ok(_repo.GetAll());
+        var users = await _context.Users.Find(_ => true).ToListAsync(cancellationToken);
+        var includePrivateContactData = User.Identity?.IsAuthenticated == true;
+        return Ok(users.Select(user => ToDto(user, includePrivateContactData)).ToArray());
     }
 
-    /// <summary>
-    /// Henter en bruger på id.
-    /// </summary>
+    [AllowAnonymous]
     [HttpGet("{id:int}")]
-    public ActionResult<User?> GetById(int id)
+    public async Task<ActionResult<User>> GetById(int id, CancellationToken cancellationToken)
     {
-        var user = _repo.GetById(id);
-        return user is null ? NotFound() : Ok(user);
+        var user = await _context.Users.Find(item => item.Id == id).FirstOrDefaultAsync(cancellationToken);
+        return user is null
+            ? NotFound()
+            : Ok(ToDto(user, User.Identity?.IsAuthenticated == true));
     }
 
-    // =========================
-    // WRITE
-    // =========================
-
-    /// <summary>
-    /// Opretter en ny bruger.
-    /// </summary>
+    [Authorize]
     [HttpPost]
-    [Authorize]
-    public IActionResult Add([FromBody] User user)
+    public async Task<IActionResult> Add([FromBody] SaveUserRequest request, CancellationToken cancellationToken)
     {
-        _repo.AddUser(user);
-        return Ok();
-    }
+        if (HasMissingRequiredProfileText(request))
+            return BadRequest(new { message = "Navn, kaldenavn, email, adresse og telefonnummer skal udfyldes." });
 
-    /// <summary>
-    /// Sletter en bruger og forsøger samtidig at slette profilbilledet fra wwwroot,
-    /// hvis brugeren har ImageUrl sat.
-    /// </summary>
-    [HttpDelete("{id:int}")]
-    [Authorize]
-    public IActionResult Delete(int id)
-    {
-        var user = _repo.GetById(id);
+        if (string.IsNullOrWhiteSpace(request.Password))
+            return BadRequest(new { message = "Adgangskode er påkrævet." });
 
-        // Best-effort: slet profilbillede hvis det findes
-        if (user is not null && !string.IsNullOrWhiteSpace(user.ImageUrl))
+        var lastUser = await _context.Users.Find(_ => true)
+            .SortByDescending(user => user.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var user = new ApplicationUser
         {
-            TryDeleteProfileImage(user.ImageUrl);
+            Id = (lastUser?.Id ?? 0) + 1,
+            UserName = request.Email.Trim(),
+            Email = request.Email.Trim(),
+            EmailConfirmed = true,
+            LockoutEnabled = true,
+            SecurityStamp = Guid.NewGuid().ToString(),
+            ConcurrencyStamp = Guid.NewGuid().ToString()
+        };
+        ApplyProfile(request, user);
+
+        var result = await _userManager.CreateAsync(user, request.Password);
+        if (!result.Succeeded)
+        {
+            _logger.LogWarning(
+                "User creation failed. Actor user: {ActorUserId}. Target email: {TargetEmail}.",
+                GetCurrentUserId(),
+                request.Email.Trim());
+            return ValidationProblem(ToProblemDetails(result));
         }
 
-        _repo.Delete(id);
-        return Ok();
+        result = await _userManager.AddToRoleAsync(user, "Member");
+        if (!result.Succeeded)
+            return ValidationProblem(ToProblemDetails(result));
+
+        _logger.LogInformation(
+            "User {CreatedUserId} ({CreatedEmail}) was created by user {ActorUserId}.",
+            user.Id,
+            user.Email,
+            GetCurrentUserId());
+
+        return CreatedAtAction(nameof(GetById), new { id = user.Id }, ToDto(user, true));
     }
 
-    /// <summary>
-    /// Opdaterer en bruger.
-    /// Returnerer 400 hvis id i URL ikke matcher body.Id.
-    /// </summary>
-    [HttpPut("{id:int}")]
     [Authorize]
-    public async Task<IActionResult> UpdateUser(int id, [FromBody] User updatedUser)
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] SaveUserRequest request)
     {
-        if (id != updatedUser.Id)
-            return BadRequest("ID i URL og body matcher ikke.");
+        if (id != request.Id)
+            return BadRequest(new { message = "ID i URL og body matcher ikke." });
 
-        var existingUser = _repo.GetById(id);
-        if (existingUser is null)
-            return NotFound("Bruger ikke fundet.");
+        if (HasMissingRequiredProfileText(request))
+            return BadRequest(new { message = "Navn, kaldenavn, email, adresse og telefonnummer skal udfyldes." });
 
-        await _repo.UpdateUser(updatedUser);
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+            return NotFound();
+
+        if (!CanManageUser(id))
+            return Forbid();
+
+        ApplyProfile(request, user);
+        user.UserName = request.Email.Trim();
+        user.Email = request.Email.Trim();
+
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            _logger.LogWarning(
+                "User update failed. Actor user: {ActorUserId}. Target user: {TargetUserId}.",
+                GetCurrentUserId(),
+                id);
+            return ValidationProblem(ToProblemDetails(result));
+        }
+
+        _logger.LogInformation(
+            "User {TargetUserId} ({TargetEmail}) was updated by user {ActorUserId}.",
+            user.Id,
+            user.Email,
+            GetCurrentUserId());
         return NoContent();
     }
 
-    // =========================
-    // Helpers
-    // =========================
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{id:int}/reset-password")]
+    public async Task<IActionResult> ResetPassword(int id, [FromBody] ResetPasswordRequest request)
+    {
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+            return NotFound();
 
-    /// <summary>
-    /// Forsøger at slette billedefilen ud fra ImageUrl.
-    /// Metoden er "best effort": fejl må ikke stoppe sletning af brugeren.
-    /// </summary>
+        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await _userManager.ResetPasswordAsync(user, resetToken, request.NewPassword);
+        if (!result.Succeeded)
+        {
+            _logger.LogWarning(
+                "Admin password reset failed. Admin user: {ActorUserId}. Target user: {TargetUserId}.",
+                GetCurrentUserId(),
+                id);
+            return ValidationProblem(ToProblemDetails(result));
+        }
+
+        result = await _userManager.UpdateSecurityStampAsync(user);
+        if (result.Succeeded)
+            await _refreshTokenStore.RevokeAllForUserAsync(user.Id);
+
+        if (result.Succeeded)
+        {
+            _logger.LogInformation(
+                "Admin user {ActorUserId} reset password for user {TargetUserId} ({TargetEmail}); old tokens were revoked.",
+                GetCurrentUserId(),
+                user.Id,
+                user.Email);
+        }
+
+        return result.Succeeded
+            ? NoContent()
+            : ValidationProblem(ToProblemDetails(result));
+    }
+
+    [Authorize]
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+            return NotFound();
+
+        if (!CanManageUser(id))
+            return Forbid();
+
+        if (await _userManager.IsInRoleAsync(user, "Admin"))
+        {
+            var admins = await _userManager.GetUsersInRoleAsync("Admin");
+            if (admins.Count <= 1)
+                return BadRequest(new { message = "Den sidste admin-bruger kan ikke slettes." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(user.ImageUrl))
+            TryDeleteProfileImage(user.ImageUrl);
+
+        var result = await _userManager.DeleteAsync(user);
+        if (result.Succeeded)
+        {
+            await _refreshTokenStore.RevokeAllForUserAsync(user.Id);
+            _logger.LogInformation(
+                "User {TargetUserId} ({TargetEmail}) was deleted by user {ActorUserId}.",
+                user.Id,
+                user.Email,
+                GetCurrentUserId());
+        }
+
+        return result.Succeeded
+            ? NoContent()
+            : ValidationProblem(ToProblemDetails(result));
+    }
+
+    private static void ApplyProfile(SaveUserRequest request, ApplicationUser user)
+    {
+        user.Name = request.Name.Trim();
+        user.NickName = request.NickName.Trim();
+        user.Address = request.Address.Trim();
+        user.PhoneNumber = request.PhoneNumber.Trim();
+        user.BirthDate = request.BirthDate;
+        user.Description = request.Description?.Trim() ?? "";
+        user.FunFact = request.FunFact?.Trim() ?? "";
+        user.ImageUrl = request.ImageUrl?.Trim() ?? "";
+    }
+
+    private static bool HasMissingRequiredProfileText(SaveUserRequest request)
+        => string.IsNullOrWhiteSpace(request.Name) ||
+           string.IsNullOrWhiteSpace(request.NickName) ||
+           string.IsNullOrWhiteSpace(request.Email) ||
+           string.IsNullOrWhiteSpace(request.Address) ||
+           string.IsNullOrWhiteSpace(request.PhoneNumber);
+
+    private static User ToDto(ApplicationUser user, bool includePrivateContactData) => new()
+    {
+        Id = user.Id,
+        Name = user.Name,
+        NickName = user.NickName,
+        Email = includePrivateContactData ? user.Email ?? "" : "",
+        Address = includePrivateContactData ? user.Address : "",
+        PhoneNumber = includePrivateContactData ? user.PhoneNumber ?? "" : "",
+        BirthDate = user.BirthDate,
+        Description = user.Description,
+        FunFact = user.FunFact,
+        ImageUrl = user.ImageUrl
+    };
+
+    private static ValidationProblemDetails ToProblemDetails(IdentityResult result)
+    {
+        var details = new ValidationProblemDetails();
+        foreach (var error in result.Errors)
+            details.Errors.TryAdd(error.Code, [error.Description]);
+        return details;
+    }
+
     private void TryDeleteProfileImage(string imageUrl)
     {
         try
         {
-            // imageUrl er typisk en fuld URL: https://host/.../uploads/xyz.jpg
-            // Vi konverterer til relativ path, så vi kan finde filen i wwwroot.
             var relativePath = imageUrl.Replace($"{Request.Scheme}://{Request.Host}", "");
-            var fullPath = Path.Combine(_env.WebRootPath, relativePath.TrimStart('/'));
-
+            var fullPath = Path.Combine(_environment.WebRootPath, relativePath.TrimStart('/'));
             if (System.IO.File.Exists(fullPath))
                 System.IO.File.Delete(fullPath);
         }
         catch (Exception ex)
         {
-            // Best-effort: log til console (kan senere skiftes til ILogger)
-            Console.WriteLine($"⚠️ Kunne ikke slette profilbillede: {ex.Message}");
+            // Profile deletion should not fail solely because an old image cannot be removed.
+            _logger.LogWarning(ex, "Could not delete old profile image for URL {ImageUrl}.", imageUrl);
         }
+    }
+
+    private bool CanManageUser(int targetUserId)
+        => User.IsInRole("Admin") || GetCurrentUserId() == targetUserId;
+
+    private int? GetCurrentUserId()
+    {
+        var value = User.FindFirst("sub")?.Value;
+        return int.TryParse(value, out var id) ? id : null;
     }
 }
