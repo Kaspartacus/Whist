@@ -5,7 +5,7 @@ namespace ServerAPI.Repositories.Points;
 /// <summary>
 /// Repository-kontrakt for points.
 /// Ansvar:
-/// - Abstrahere persistence (MongoDB) væk fra controlleren
+/// - Abstrahere persistence væk fra controlleren
 /// - Holde et simpelt API til CRUD på PointEntry
 /// </summary>
 public interface IPointRepository

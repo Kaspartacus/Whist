@@ -24,7 +24,7 @@ Backend:
 - ASP.NET Core Web API
 
 Database:
-- MongoDB
+- Azure Cosmos DB for NoSQL
 
 ## Login
 
@@ -42,10 +42,10 @@ gamle tokens server-side.
 Den lokale JWT-signeringsnøgle må ikke gemmes i source control. Opret den med:
 
 ```bash
-dotnet user-secrets set "Jwt:SigningKey" "<mindst 32 tilfældige tegn>" --project ServerAPI
+dotnet user-secrets set "Jwt:Key" "<mindst 32 tilfældige tegn>" --project ServerAPI
 ```
 
-Brugere skal have et Identity `PasswordHash` i MongoDB. Gamle plaintext
+Brugere skal have et Identity `PasswordHash` i databasen. Gamle plaintext
 adgangskoder bruges ikke længere af applikationen.
 
 ## Formål
@@ -54,5 +54,5 @@ Projektet er et hobbyprojekt til vores Whist-aftener og bruges samtidig som øve
 
 - Blazor
 - Web API
-- MongoDB
+- Azure Cosmos DB for NoSQL
 - full-stack udvikling

@@ -4,7 +4,7 @@ namespace ServerAPI.Repositories.Highlights;
 
 /// <summary>
 /// Repository-kontrakt for highlights.
-/// Her ligger highlights i en separat MongoDB collection ("highlights").
+/// Her ligger highlights i en separat database-container ("highlights").
 /// </summary>
 public interface IHighlightRepository
 {

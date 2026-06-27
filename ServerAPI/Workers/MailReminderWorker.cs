@@ -2,8 +2,8 @@ using System.Net;
 using System.Net.Mail;
 using System.Net.Mime;
 using System.Text;
-using MongoDB.Driver;
 using ServerAPI.Auth;
+using ServerAPI.Configuration;
 using ServerAPI.Repositories.Calendars;
 
 namespace ServerAPI.Workers;
@@ -19,18 +19,18 @@ public class MailReminderWorker : BackgroundService
 {
     private readonly ILogger<MailReminderWorker> _log;
     private readonly ICalendarRepository _calRepo;
-    private readonly MongoIdentityContext _identityContext;
+    private readonly CosmosDbContext _cosmos;
     private readonly IConfiguration _config;
 
     public MailReminderWorker(
         ILogger<MailReminderWorker> log,
         ICalendarRepository calRepo,
-        MongoIdentityContext identityContext,
+        CosmosDbContext cosmos,
         IConfiguration config)
     {
         _log = log;
         _calRepo = calRepo;
-        _identityContext = identityContext;
+        _cosmos = cosmos;
         _config = config;
     }
 
@@ -70,9 +70,9 @@ public class MailReminderWorker : BackgroundService
         var today = DateOnly.FromDateTime(DateTime.Now);
 
         // 1) Hent modtagere (bruges til både fødselsdage og events)
-        var users = await _identityContext.Users
-            .Find(user => user.Email != null && user.Email != "")
-            .ToListAsync(ct);
+        var users = (await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users, ct))
+            .Where(user => !string.IsNullOrWhiteSpace(user.Email))
+            .ToList();
 
         if (users.Count == 0)
         {

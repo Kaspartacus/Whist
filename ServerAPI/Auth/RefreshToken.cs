@@ -1,12 +1,10 @@
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
+using System.Text.Json.Serialization;
 
 namespace ServerAPI.Auth;
 
 public sealed class RefreshToken
 {
-    [BsonId]
-    public ObjectId Id { get; set; }
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
 
     public int UserId { get; set; }
     public string TokenHash { get; set; } = "";
@@ -15,6 +13,6 @@ public sealed class RefreshToken
     public DateTime? RevokedAtUtc { get; set; }
     public string? ReplacedByTokenHash { get; set; }
 
-    [BsonIgnore]
+    [JsonIgnore]
     public bool IsActive => RevokedAtUtc is null && ExpiresAtUtc > DateTime.UtcNow;
 }

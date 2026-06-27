@@ -1,10 +1,8 @@
 using Microsoft.AspNetCore.Identity;
-using MongoDB.Bson.Serialization.Attributes;
 using Core;
 
 namespace ServerAPI.Auth;
 
-[BsonIgnoreExtraElements]
 public sealed class ApplicationUser : IdentityUser<int>
 {
     public string Name { get; set; } = "";

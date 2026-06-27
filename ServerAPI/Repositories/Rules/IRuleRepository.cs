@@ -6,7 +6,7 @@ namespace ServerAPI.Repositories.Rules;
 /// Repository-kontrakt for regler.
 /// 
 /// Formål:
-/// - Skjule persistence (MongoDB) fra controller.
+/// - Skjule persistence fra controller.
 /// - Give et simpelt CRUD API for Rule.
 /// </summary>
 public interface IRuleRepository

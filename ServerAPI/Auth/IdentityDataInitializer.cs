@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Identity;
-using MongoDB.Driver;
+using ServerAPI.Configuration;
 
 namespace ServerAPI.Auth;
 
@@ -9,20 +9,20 @@ public sealed class IdentityDataInitializer
 
     private readonly RoleManager<ApplicationRole> _roleManager;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly MongoIdentityContext _context;
+    private readonly CosmosDbContext _cosmos;
     private readonly IConfiguration _configuration;
     private readonly ILogger<IdentityDataInitializer> _logger;
 
     public IdentityDataInitializer(
         RoleManager<ApplicationRole> roleManager,
         UserManager<ApplicationUser> userManager,
-        MongoIdentityContext context,
+        CosmosDbContext cosmos,
         IConfiguration configuration,
         ILogger<IdentityDataInitializer> logger)
     {
         _roleManager = roleManager;
         _userManager = userManager;
-        _context = context;
+        _cosmos = cosmos;
         _configuration = configuration;
         _logger = logger;
     }
@@ -40,7 +40,7 @@ public sealed class IdentityDataInitializer
             }
         }
 
-        var users = await _context.Users.Find(_ => true).ToListAsync(cancellationToken);
+        var users = await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users, cancellationToken);
         foreach (var user in users)
         {
             var changed = false;
