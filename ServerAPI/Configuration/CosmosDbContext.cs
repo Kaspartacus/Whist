@@ -24,12 +24,20 @@ public sealed class CosmosDbContext
         if (string.IsNullOrWhiteSpace(databaseName))
             throw new InvalidOperationException("Database:Name is required.");
 
+        var sharedThroughput = GetSharedThroughput(configuration);
+
         var client = new CosmosClient(connectionString, new CosmosClientOptions
         {
-            Serializer = new SystemTextJsonCosmosSerializer()
+            Serializer = new SystemTextJsonCosmosSerializer(),
+            ConnectionMode = ConnectionMode.Gateway,
+            RequestTimeout = TimeSpan.FromSeconds(15)
         });
 
-        var database = client.CreateDatabaseIfNotExistsAsync(databaseName).GetAwaiter().GetResult().Database;
+        var database = client
+            .CreateDatabaseIfNotExistsAsync(databaseName, sharedThroughput)
+            .GetAwaiter()
+            .GetResult()
+            .Database;
 
         Users = CreateContainer(database, GetRequiredContainerName(configuration, "Users"));
         Roles = CreateContainer(database, GetRequiredContainerName(configuration, "Roles"));
@@ -141,6 +149,15 @@ public sealed class CosmosDbContext
             .GetAwaiter()
             .GetResult()
             .Container;
+    }
+
+    private static int GetSharedThroughput(IConfiguration configuration)
+    {
+        var throughput = configuration.GetValue("Database:SharedThroughput", 1000);
+        if (throughput < 400)
+            throw new InvalidOperationException("Database:SharedThroughput must be at least 400 RU/s.");
+
+        return throughput;
     }
 
     private static string GetRequiredContainerName(IConfiguration configuration, string key)

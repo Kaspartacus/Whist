@@ -299,10 +299,35 @@ app.MapGet("/health", () => Results.Ok(new
 
 app.MapControllers();
 
-await using (var scope = app.Services.CreateAsyncScope())
+app.Lifetime.ApplicationStarted.Register(() =>
 {
-    await scope.ServiceProvider.GetRequiredService<IdentityDataInitializer>().InitializeAsync();
-}
+    var logger = app.Services
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("StartupInitialization");
+
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            logger.LogInformation("Starting background identity and database initialization.");
+
+            await using var scope = app.Services.CreateAsyncScope();
+            await scope.ServiceProvider
+                .GetRequiredService<IdentityDataInitializer>()
+                .InitializeAsync(app.Lifetime.ApplicationStopping);
+
+            logger.LogInformation("Background identity and database initialization completed.");
+        }
+        catch (OperationCanceledException) when (app.Lifetime.ApplicationStopping.IsCancellationRequested)
+        {
+            logger.LogInformation("Background identity and database initialization was cancelled because the app is stopping.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogCritical(ex, "Background identity and database initialization failed.");
+        }
+    }, app.Lifetime.ApplicationStopping);
+});
 
 app.Run();
 
