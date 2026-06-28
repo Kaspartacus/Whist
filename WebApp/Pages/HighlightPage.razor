@@ -287,8 +287,15 @@
     /// <summary>
     /// Formatterer dato pænt på dansk i lokal timezone.
     /// </summary>
-    private static string FormatDanishDate(DateTime utcDate)
+    private static string FormatDanishDate(DateTime date)
     {
+        var utcDate = date.Kind switch
+        {
+            DateTimeKind.Utc => date,
+            DateTimeKind.Local => date.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(date, DateTimeKind.Utc)
+        };
+
         var local = TimeZoneInfo.ConvertTimeFromUtc(utcDate, CopenhagenTz);
         return local.ToString("d. MMMM yyyy", DanishCulture);
     }
