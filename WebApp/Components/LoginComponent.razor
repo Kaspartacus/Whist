@@ -11,8 +11,7 @@
     <div class="modal-overlay" 
          @onclick="OnBackdropClick"
          tabindex="0"
-         @onkeydown="HandleKeyDown"
-         @onclick="Hide">
+         @onkeydown="HandleKeyDown">
         @* Stop klik i selve boksen fra at lukke modal *@
         <div class="modal-box" @onclick:stopPropagation="true">
             <h3>Log ind</h3>

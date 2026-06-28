@@ -1,7 +1,9 @@
 ﻿@using Core
 @using WebApp.Components
+@using Microsoft.AspNetCore.Components.Routing
 @inject Service.AuthServices.IAuthService AuthService
 @inject NavigationManager NavigationManager
+@implements IDisposable
 
 <!-- LoginModal-komponenten -->
 <LoginComponent @ref="_loginComponent" OnLoginSuccess="HandleLogin" />
@@ -96,15 +98,21 @@
     private LoginComponent? _loginComponent;
     private bool isMobileOpen;
 
+    protected override void OnInitialized()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
     private Task HandleLogin()
     {
         StateHasChanged();
         return Task.CompletedTask;
     }
 
-    private void OpenLogin()
+    private async Task OpenLogin()
     {
         isMobileOpen = false;
+        await InvokeAsync(StateHasChanged);
         _loginComponent?.Show();
     }
 
@@ -120,6 +128,23 @@
     private void CloseMobileMenu()
     {
         if (isMobileOpen)
+        {
             isMobileOpen = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        if (!isMobileOpen)
+            return;
+
+        isMobileOpen = false;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
