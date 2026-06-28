@@ -1,58 +1,52 @@
-# Whist App
+# Whist
 
-Dette projekt er en webapplikation lavet til vores Whist-gruppe.  
-Vi er fire venner som mødes og spiller kort, og appen hjælper os med at holde styr på vores spil og aktiviteter.
+Whist er en lille webapplikation lavet til en privat Whist-gruppe.
 
-Applikationen bruges til at registrere bøder, holde styr på point, gemme highlights fra spil og planlægge kommende spilledage.
-
-## Funktioner
-
-- Login
-- Kalender til planlægning af spilledage
-- Registrering af bøder
-- Pointsystem (sol-skema)
-- Highlights fra spil
-- Regelside
-- Brugerhåndtering
-
-## Teknologi
-
-Frontend:
-- Blazor WebAssembly
-
-Backend:
-- ASP.NET Core Web API
-
-Database:
-- Azure Cosmos DB for NoSQL
-
-## Login
-
-Alle kan se data i systemet, men kun loggede brugere kan:
-
-- oprette
-- redigere
-- slette
-
-Login valideres i backend med ASP.NET Core Identity. Beskyttede API-kald
-kræver et kortlivet JWT access token. JWT'et indeholder brugerens Identity
-security stamp, så logout, password reset og slettede brugere invaliderer
-gamle tokens server-side.
-
-Den lokale JWT-signeringsnøgle må ikke gemmes i source control. Opret den med:
-
-```bash
-dotnet user-secrets set "Jwt:Key" "<mindst 32 tilfældige tegn>" --project ServerAPI
-```
-
-Brugere skal have et Identity `PasswordHash` i databasen. Gamle plaintext
-adgangskoder bruges ikke længere af applikationen.
+Appen hjælper med at samle de ting, der hører til vores spilaftener: medlemmer, point, bøder, highlights, regler og kalenderaftaler.
 
 ## Formål
 
-Projektet er et hobbyprojekt til vores Whist-aftener og bruges samtidig som øvelse i at arbejde med:
+Projektet er et hobbyprojekt, men er bygget som en rigtig full-stack applikation med fokus på enkel struktur, sikker login og mulighed for deployment i Azure.
 
-- Blazor
-- Web API
-- Azure Cosmos DB for NoSQL
-- full-stack udvikling
+Målet er ikke at lave et stort enterprise-system, men en overskuelig og vedligeholdbar app, der kan bruges af en lille gruppe brugere.
+
+## Overordnet funktionalitet
+
+- Login og brugerhåndtering
+- Medlemsoversigt
+- Point og spilskema
+- Bøder
+- Highlights
+- Regler
+- Kalender
+
+Nogle data kan ses uden login, mens handlinger der opretter, ændrer eller sletter data kræver login.
+
+## Teknologi
+
+Projektet består af:
+
+- Blazor WebAssembly frontend
+- ASP.NET Core Web API backend
+- Azure Cosmos DB som database
+- JWT-baseret authentication
+- Dockeriseret backend
+- GitHub Actions til build og deployment
+
+## Arkitektur
+
+Applikationen er bygget som en modular monolith med separat frontend, backend og shared core-projekt.
+
+Backend er stateless og kan køre som container. Frontend er en statisk Blazor WebAssembly-app.
+
+## Deployment
+
+Projektet er forberedt til en enkel Azure deployment med:
+
+- Azure Static Web Apps til frontend
+- Azure Container Apps til backend
+- Azure Cosmos DB til data
+- Azure Key Vault til secrets
+
+Konfiguration og secrets skal håndteres via miljøvariabler og Azure services, ikke hardcodes i source code.
+
