@@ -158,21 +158,21 @@
     }
 
     .mobile-menu {
-        padding: 14px 16px 20px 16px;
+        padding: 10px 12px 14px 12px;
     }
 
     .mobile-links {
-        gap: 10px;
-        margin-top: 14px;
+        gap: 7px;
+        margin-top: 10px;
     }
 
     ::deep a.mobile-btn {
-        padding: 12px 14px;
-        font-size: 18px;
+        padding: 8px 10px;
+        font-size: 16px;
     }
 
     .mobile-logout {
-        margin-top: 28px;
+        margin-top: 18px;
     }
 }
 
