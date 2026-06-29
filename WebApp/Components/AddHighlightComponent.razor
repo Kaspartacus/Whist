@@ -33,10 +33,10 @@
                       @onkeydown="HandleDescriptionKeyDown"
                       @onkeydown:stopPropagation="true"></textarea>
 
-            @* Upload billede (gemmer fil i wwwroot/uploads via UploadController og får en URL retur) *@
+            @* Upload billede via backend, som gemmer komprimeret version i Blob Storage og får en URL retur *@
             <label for="file-upload" class="custom-file-label">📷 Vedhæft billede</label>
             <div class="file-input-wrapper">
-                <InputFile id="file-upload" OnChange="HandleImageUpload" accept="image/*" />
+                <InputFile id="file-upload" OnChange="HandleImageUpload" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
             </div>
 
             @* Preview viser URL'en (enten eksisterende billede eller nyligt uploadet) *@

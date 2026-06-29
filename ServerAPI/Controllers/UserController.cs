@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using ServerAPI.Auth;
 using ServerAPI.Configuration;
+using ServerAPI.Storage;
 
 namespace ServerAPI.Controllers;
 
@@ -14,20 +15,20 @@ public sealed class UserController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IRefreshTokenStore _refreshTokenStore;
     private readonly CosmosDbContext _cosmos;
-    private readonly IWebHostEnvironment _environment;
+    private readonly IImageStorageService _imageStorage;
     private readonly ILogger<UserController> _logger;
 
     public UserController(
         UserManager<ApplicationUser> userManager,
         IRefreshTokenStore refreshTokenStore,
         CosmosDbContext cosmos,
-        IWebHostEnvironment environment,
+        IImageStorageService imageStorage,
         ILogger<UserController> logger)
     {
         _userManager = userManager;
         _refreshTokenStore = refreshTokenStore;
         _cosmos = cosmos;
-        _environment = environment;
+        _imageStorage = imageStorage;
         _logger = logger;
     }
 
@@ -100,7 +101,7 @@ public sealed class UserController : ControllerBase
 
     [Authorize]
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] SaveUserRequest request)
+    public async Task<IActionResult> Update(int id, [FromBody] SaveUserRequest request, CancellationToken cancellationToken)
     {
         if (id != request.Id)
             return BadRequest(new { message = "ID i URL og body matcher ikke." });
@@ -114,6 +115,8 @@ public sealed class UserController : ControllerBase
 
         if (!CanManageUser(id))
             return Forbid();
+
+        var oldImageUrl = user.ImageUrl;
 
         ApplyProfile(request, user);
         user.UserName = request.Email.Trim();
@@ -134,6 +137,13 @@ public sealed class UserController : ControllerBase
             user.Id,
             user.Email,
             GetCurrentUserId());
+
+        if (!string.IsNullOrWhiteSpace(oldImageUrl) &&
+            !string.Equals(oldImageUrl, user.ImageUrl, StringComparison.Ordinal))
+        {
+            await _imageStorage.TryDeleteImageAsync(oldImageUrl, cancellationToken);
+        }
+
         return NoContent();
     }
 
@@ -176,7 +186,7 @@ public sealed class UserController : ControllerBase
 
     [Authorize]
     [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var user = await _userManager.FindByIdAsync(id.ToString());
         if (user is null)
@@ -193,7 +203,7 @@ public sealed class UserController : ControllerBase
         }
 
         if (!string.IsNullOrWhiteSpace(user.ImageUrl))
-            TryDeleteProfileImage(user.ImageUrl);
+            await _imageStorage.TryDeleteImageAsync(user.ImageUrl, cancellationToken);
 
         var result = await _userManager.DeleteAsync(user);
         if (result.Succeeded)
@@ -250,22 +260,6 @@ public sealed class UserController : ControllerBase
         foreach (var error in result.Errors)
             details.Errors.TryAdd(error.Code, [error.Description]);
         return details;
-    }
-
-    private void TryDeleteProfileImage(string imageUrl)
-    {
-        try
-        {
-            var relativePath = imageUrl.Replace($"{Request.Scheme}://{Request.Host}", "");
-            var fullPath = Path.Combine(_environment.WebRootPath, relativePath.TrimStart('/'));
-            if (System.IO.File.Exists(fullPath))
-                System.IO.File.Delete(fullPath);
-        }
-        catch (Exception ex)
-        {
-            // Profile deletion should not fail solely because an old image cannot be removed.
-            _logger.LogWarning(ex, "Could not delete old profile image for URL {ImageUrl}.", imageUrl);
-        }
     }
 
     private bool CanManageUser(int targetUserId)

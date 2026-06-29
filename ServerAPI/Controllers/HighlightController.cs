@@ -2,6 +2,7 @@ using Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ServerAPI.Repositories.Highlights;
+using ServerAPI.Storage;
 
 namespace ServerAPI.Controllers;
 
@@ -14,20 +15,19 @@ namespace ServerAPI.Controllers;
 public class HighlightController : ControllerBase
 {
     private readonly IHighlightRepository _repository;
-    private readonly IWebHostEnvironment _env;
+    private readonly IImageStorageService _imageStorage;
     private readonly ILogger<HighlightController> _logger;
 
     /// <summary>
-    /// Repository + hosting environment injiceres via DI.
-    /// _env bruges til at finde wwwroot path, når vi sletter billeder fra disk.
+    /// Repository + image storage injiceres via DI.
     /// </summary>
     public HighlightController(
         IHighlightRepository repository,
-        IWebHostEnvironment env,
+        IImageStorageService imageStorage,
         ILogger<HighlightController> logger)
     {
         _repository = repository;
-        _env = env;
+        _imageStorage = imageStorage;
         _logger = logger;
     }
 
@@ -137,7 +137,7 @@ public class HighlightController : ControllerBase
     /// </summary>
     [HttpPut("{id}")]
     [Authorize]
-    public async Task<IActionResult> Update(int id, [FromBody] SaveHighlightRequest request)
+    public async Task<IActionResult> Update(int id, [FromBody] SaveHighlightRequest request, CancellationToken cancellationToken)
     {
         if (HasInvalidHighlightText(request))
             return BadRequest(new { message = "Titel og beskrivelse skal udfyldes." });
@@ -156,6 +156,13 @@ public class HighlightController : ControllerBase
         highlight.Id = id;
         highlight.UserId = existing.UserId;
         await _repository.Update(highlight);
+
+        if (!string.IsNullOrWhiteSpace(existing.ImageUrl) &&
+            !string.Equals(existing.ImageUrl, highlight.ImageUrl, StringComparison.Ordinal))
+        {
+            await _imageStorage.TryDeleteImageAsync(existing.ImageUrl, cancellationToken);
+        }
+
         _logger.LogInformation(
             "Highlight {HighlightId} was updated by user {ActorUserId}. Owner user: {OwnerUserId}. Private: {IsPrivate}.",
             highlight.Id,
@@ -167,11 +174,11 @@ public class HighlightController : ControllerBase
 
     /// <summary>
     /// Sletter et highlight.
-    /// Hvis highlight har et billede (ImageUrl), forsøger vi også at slette filen fra wwwroot.
+    /// Hvis highlight har et billede (ImageUrl), forsøger vi også at slette filen fra Blob Storage.
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var highlight = await _repository.GetById(id);
 
@@ -183,25 +190,10 @@ public class HighlightController : ControllerBase
 
         var ownerUserId = highlight.UserId;
 
-        // Hvis der ligger et billede på disk, prøver vi at fjerne det først.
-        // (Failure her må ikke stoppe selve sletningen af highlight i DB.)
+        // Hvis billedet ligger i Blob Storage, prøver vi at fjerne det først.
+        // Failure her må ikke stoppe selve sletningen af highlight i DB.
         if (!string.IsNullOrEmpty(highlight.ImageUrl))
-        {
-            try
-            {
-                // Fjern domæne fra URL, fx "http://localhost:5176/uploads/2025.07.14/abc.jpg"
-                var relativePath = highlight.ImageUrl.Replace($"{Request.Scheme}://{Request.Host}", "");
-                var fullPath = Path.Combine(_env.WebRootPath, relativePath.TrimStart('/'));
-
-                if (System.IO.File.Exists(fullPath))
-                    System.IO.File.Delete(fullPath);
-            }
-            catch (Exception ex)
-            {
-                // Bevidst "soft fail": selve highlight-sletningen må stadig gerne fortsætte.
-                _logger.LogWarning(ex, "Could not delete image for highlight {HighlightId}.", id);
-            }
-        }
+            await _imageStorage.TryDeleteImageAsync(highlight.ImageUrl, cancellationToken);
 
         await _repository.Delete(id);
         _logger.LogInformation(
