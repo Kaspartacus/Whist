@@ -123,7 +123,7 @@
             }
 
             <div class="file-input-wrapper">
-                <InputFile id="file-upload" OnChange="HandleImageUpload" accept="image/*" />
+                <InputFile id="file-upload" OnChange="HandleImageUpload" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
             </div>
 
             @if (UserToEdit is not null && IsEditingOwnUser)

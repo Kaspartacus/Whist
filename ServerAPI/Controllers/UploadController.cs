@@ -1,19 +1,23 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
+using ServerAPI.Storage;
+using SixLabors.ImageSharp;
 
 namespace ServerAPI.Controllers;
 
 /// <summary>
 /// Upload controller til profilbilleder.
-/// Gemmer filer i: wwwroot/uploads/{yyyy.MM.dd}/{guid}.{ext}
+/// Validerer billeder og gemmer kun en komprimeret version i Azure Blob Storage.
 /// Returnerer en offentlig URL til filen.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class UploadController : ControllerBase
 {
-    private readonly IWebHostEnvironment _env;
+    private readonly IImageStorageService _imageStorage;
+    private readonly BlobStorageOptions _blobOptions;
     private readonly ILogger<UploadController> _logger;
 
     // Tilladte filtyper til upload
@@ -22,12 +26,18 @@ public class UploadController : ControllerBase
         ".jpg", ".jpeg", ".png", ".webp"
     };
 
-    // Maks filstørrelse (5 MB)
-    private const long MaxFileSizeBytes = 5 * 1024 * 1024;
-
-    public UploadController(IWebHostEnvironment env, ILogger<UploadController> logger)
+    private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        _env = env;
+        "image/jpeg", "image/png", "image/webp"
+    };
+
+    public UploadController(
+        IImageStorageService imageStorage,
+        IOptions<BlobStorageOptions> blobOptions,
+        ILogger<UploadController> logger)
+    {
+        _imageStorage = imageStorage;
+        _blobOptions = blobOptions.Value;
         _logger = logger;
     }
 
@@ -47,7 +57,7 @@ public class UploadController : ControllerBase
             return BadRequest(new { message = "Intet billede modtaget." });
         }
 
-        if (file.Length > MaxFileSizeBytes)
+        if (file.Length > _blobOptions.MaxUploadBytes)
         {
             _logger.LogWarning(
                 "Image upload rejected for user {ActorUserId}: file was too large. Size: {FileSizeBytes} bytes.",
@@ -56,8 +66,6 @@ public class UploadController : ControllerBase
             return BadRequest(new { message = "Filen er for stor. Maks 5 MB tilladt." });
         }
 
-        // 2) Valider filtype ud fra extension
-        // NOTE: Dette er ikke "virus scanning" eller fuld MIME-validering, men fint til jeres use-case.
         var originalName = Path.GetFileName(file.FileName); // undgå evt. path traversal
         var ext = Path.GetExtension(originalName);
 
@@ -70,28 +78,33 @@ public class UploadController : ControllerBase
             return BadRequest(new { message = "Filtypen er ikke tilladt. Kun jpg, jpeg, png og webp er tilladt." });
         }
 
-        // 3) Byg upload sti (wwwroot/uploads/yyyy.MM.dd/)
-        var fileName = $"{Guid.NewGuid()}{ext.ToLowerInvariant()}";
-        var folderName = DateTime.UtcNow.ToString("yyyy.MM.dd");
-        var uploadPath = Path.Combine(_env.WebRootPath, "uploads", folderName);
-
-        // Opret mappe hvis den ikke findes
-        Directory.CreateDirectory(uploadPath);
-
-        // 4) Gem filen
-        var filePath = Path.Combine(uploadPath, fileName);
-
-        await using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+        if (!string.IsNullOrWhiteSpace(file.ContentType) && !AllowedContentTypes.Contains(file.ContentType))
         {
-            await file.CopyToAsync(stream, ct);
+            _logger.LogWarning(
+                "Image upload rejected for user {ActorUserId}: content type {ContentType} is not allowed.",
+                GetCurrentUserId(),
+                file.ContentType);
+            return BadRequest(new { message = "Filtypen er ikke tilladt. Kun jpg, jpeg, png og webp er tilladt." });
         }
 
-        // 5) Returnér offentligt URL (kræver at static files er enabled i backend)
-        var fileUrl = $"{Request.Scheme}://{Request.Host}/uploads/{folderName}/{fileName}";
+        string fileUrl;
+        try
+        {
+            fileUrl = await _imageStorage.UploadImageAsync(file, GetCurrentUserId(), ct);
+        }
+        catch (UnknownImageFormatException ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Image upload rejected for user {ActorUserId}: file could not be decoded as an image.",
+                GetCurrentUserId());
+            return BadRequest(new { message = "Billedet kunne ikke læses. Vælg en gyldig jpg, png eller webp fil." });
+        }
+
         _logger.LogInformation(
-            "Image uploaded by user {ActorUserId}. Stored as {StoredFileName}. Size: {FileSizeBytes} bytes.",
+            "Image uploaded by user {ActorUserId}. Original file: {OriginalFileName}. Size: {FileSizeBytes} bytes.",
             GetCurrentUserId(),
-            fileName,
+            originalName,
             file.Length);
         return Ok(new { Url = fileUrl });
     }

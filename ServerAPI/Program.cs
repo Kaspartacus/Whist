@@ -14,6 +14,7 @@ using ServerAPI.Repositories.Fines;
 using ServerAPI.Repositories.Highlights;
 using ServerAPI.Repositories.Points;
 using ServerAPI.Repositories.Rules;
+using ServerAPI.Storage;
 using ServerAPI.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -43,6 +44,18 @@ builder.Services.AddScoped<IdentityDataInitializer>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IRefreshTokenStore, CosmosRefreshTokenStore>();
 builder.Services.AddScoped<RefreshTokenService>();
+
+builder.Services
+    .AddOptions<BlobStorageOptions>()
+    .Bind(builder.Configuration.GetSection(BlobStorageOptions.SectionName))
+    .Validate(options => !string.IsNullOrWhiteSpace(options.ConnectionString), "BlobStorage:ConnectionString is required.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.ContainerName), "BlobStorage:ContainerName is required.")
+    .Validate(options => options.MaxUploadBytes is > 0 and <= 5 * 1024 * 1024, "BlobStorage:MaxUploadBytes must be between 1 byte and 5 MB.")
+    .Validate(options => options.MaxImageWidth is >= 100 and <= 4000, "BlobStorage:MaxImageWidth must be between 100 and 4000.")
+    .Validate(options => options.WebpQuality is >= 50 and <= 95, "BlobStorage:WebpQuality must be between 50 and 95.")
+    .ValidateOnStart();
+
+builder.Services.AddSingleton<IImageStorageService, BlobImageStorageService>();
 
 builder.Services
     .AddIdentityCore<ApplicationUser>(options =>
@@ -272,7 +285,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Static files (uploads under wwwroot/uploads)
+// Static files. Legacy uploaded files under wwwroot/uploads can still be served,
+// while new uploads are stored in Azure Blob Storage.
 app.UseStaticFiles();
 
 // Redirect HTTP -> HTTPS
