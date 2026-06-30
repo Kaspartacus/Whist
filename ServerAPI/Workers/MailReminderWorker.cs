@@ -17,6 +17,8 @@ namespace ServerAPI.Workers;
 /// </summary>
 public class MailReminderWorker : BackgroundService
 {
+    private static readonly TimeZoneInfo DanishTimeZone = FindDanishTimeZone();
+
     private readonly ILogger<MailReminderWorker> _log;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _config;
@@ -37,9 +39,10 @@ public class MailReminderWorker : BackgroundService
         {
             try
             {
-                // Kør dagligt kl. 09:00 lokal tid
-                var now = DateTime.Now;
-                var nextRun = now.Date.AddHours(9);
+                // Kør dagligt kl. 09:00 dansk tid.
+                // Containeren kan køre i UTC, så vi bruger eksplicit Europe/Copenhagen.
+                var now = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, DanishTimeZone);
+                var nextRun = new DateTimeOffset(now.Year, now.Month, now.Day, 9, 0, 0, now.Offset);
 
                 if (now >= nextRun)
                     nextRun = nextRun.AddDays(1);
@@ -68,7 +71,8 @@ public class MailReminderWorker : BackgroundService
         var cosmos = scope.ServiceProvider.GetRequiredService<CosmosDbContext>();
         var calRepo = scope.ServiceProvider.GetRequiredService<ICalendarRepository>();
 
-        var today = DateOnly.FromDateTime(DateTime.Now);
+        var now = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, DanishTimeZone);
+        var today = DateOnly.FromDateTime(now.DateTime);
 
         // 1) Hent modtagere (bruges til både fødselsdage og events)
         var users = (await CosmosDbContext.ReadAllAsync<ApplicationUser>(cosmos.Users, ct))
@@ -230,5 +234,21 @@ Du ønskes en god dag fra hele Whist holdet
             sentTotal,
             eventsInTwoDays.Count
         );
+    }
+
+    private static TimeZoneInfo FindDanishTimeZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Romance Standard Time");
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Romance Standard Time");
+        }
     }
 }

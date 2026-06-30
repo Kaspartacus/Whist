@@ -4,3 +4,9 @@ obj/
 riderModule.iml
 /_ReSharper.Caches/
 .DS_Store
+**/.DS_Store
+.idea/
+*.DotSettings.user
+whist.users.json
+whist.rules.json
+whist.highlights.json
