@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ServerAPI.Repositories.Calendars;
 
-namespace WebAPI.Controllers;
+namespace ServerAPI.Controllers;
 
 /// <summary>
 /// API-controller for kalender-events.

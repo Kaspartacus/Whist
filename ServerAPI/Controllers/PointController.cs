@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ServerAPI.Repositories.Points;
 
-namespace WebAPI.Controllers;
+namespace ServerAPI.Controllers;
 
 /// <summary>
 /// API-controller for Whist points.
