@@ -12,6 +12,7 @@ public sealed class ApplicationUser : IdentityUser<int>
     public string Description { get; set; } = "";
     public string FunFact { get; set; } = "";
     public string ImageUrl { get; set; } = "";
+    public int? LastBirthdayGreetingSentYear { get; set; }
     public List<string> Roles { get; set; } = new();
     public ICollection<Fine> Fines { get; set; } = new List<Fine>();
 }

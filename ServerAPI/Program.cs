@@ -14,8 +14,8 @@ using ServerAPI.Repositories.Fines;
 using ServerAPI.Repositories.Highlights;
 using ServerAPI.Repositories.Points;
 using ServerAPI.Repositories.Rules;
+using ServerAPI.Services.Reminders;
 using ServerAPI.Storage;
-using ServerAPI.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +44,7 @@ builder.Services.AddScoped<IdentityDataInitializer>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IRefreshTokenStore, CosmosRefreshTokenStore>();
 builder.Services.AddScoped<RefreshTokenService>();
+builder.Services.AddScoped<IReminderMailService, ReminderMailService>();
 
 builder.Services
     .AddOptions<BlobStorageOptions>()
@@ -214,10 +215,21 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+
+    options.AddPolicy("reminders", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            $"reminders:{GetClientIp(httpContext)}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 });
 
-// Background worker (mail reminders)
-builder.Services.AddHostedService<MailReminderWorker>();
+// Reminder mails are triggered by GitHub Actions through api/reminder/run.
+// Keeping scheduling outside the API lets the Container App scale to zero safely.
 
 // CORS: API only accepts configured frontend origins.
 // Production should set Cors:AllowedOrigins to the real frontend domain.

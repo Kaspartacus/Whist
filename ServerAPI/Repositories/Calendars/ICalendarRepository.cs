@@ -19,14 +19,17 @@ public interface ICalendarRepository
     /// </summary>
     Task AddOrUpdate(Calendar evt);
 
+    /// <summary>Henter et event ud fra id.</summary>
+    Task<Calendar?> GetById(int id);
+
     /// <summary>Sletter et event ud fra id.</summary>
     Task Delete(int id);
 
     /// <summary>
-    /// Finder events der ligger præcis offsetDays fra i dag (i lokal timezone),
-    /// og som ikke allerede har fået sendt reminder.
+    /// Finder kommende events inden for reminder-vinduet (i lokal timezone),
+    /// som ikke allerede har fået sendt reminder.
     /// </summary>
-    Task<List<Calendar>> FindByExactOffsetDays(int offsetDays);
+    Task<List<Calendar>> FindPendingReminders(int reminderDaysAhead);
 
     /// <summary>Markerer ét event som sendt.</summary>
     Task MarkReminderSent(int calendarId);

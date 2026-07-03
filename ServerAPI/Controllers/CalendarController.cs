@@ -8,7 +8,7 @@ namespace ServerAPI.Controllers;
 /// <summary>
 /// API-controller for kalender-events.
 /// Controlleren er bevidst "tynd":
-/// - Ingen mail-logik her (det ligger i MailReminderWorker)
+/// - Ingen mail-logik her (det trigges via ReminderController/ReminderMailService)
 /// - Ingen database-specifik logik her (det ligger i repository)
 /// </summary>
 [ApiController]
@@ -49,6 +49,7 @@ public class CalendarController : ControllerBase
 
         var calendar = new Calendar
         {
+            Id = request.Id,
             Date = request.Date,
             Note = request.Note.Trim()
         };
