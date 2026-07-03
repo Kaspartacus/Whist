@@ -255,9 +255,7 @@
 
     // Dato → Note (bruges i grid + tabeller)
     private Dictionary<DateTime, string> EventDates = new();
-
-    // Liste med alle events fra API (bruges for at finde Id ved sletning)
-    private List<Core.Calendar> AllEvents = new();
+    private Dictionary<DateTime, Core.Calendar> EventsByDate = new();
 
     // År/måned
     private int currentYear = DateTime.Today.Year;
@@ -348,12 +346,13 @@
     private async Task LoadEvents()
     {
         var allEvents = await CalendarService.GetAll();
-        AllEvents = allEvents;
 
-        // OBS: Vi viser dato i lokal tid i UI.
         EventDates = allEvents
-            .GroupBy(e => e.Date.ToLocalTime().Date)
+            .GroupBy(e => GetCalendarDate(e.Date))
             .ToDictionary(g => g.Key, g => g.First().Note);
+        EventsByDate = allEvents
+            .GroupBy(e => GetCalendarDate(e.Date))
+            .ToDictionary(g => g.Key, g => g.First());
 
         // Holder pagination på gyldige sider efter ændringer
         PastCurrentPage = NormalizePage(PastCurrentPage, PastTotalPages);
@@ -397,8 +396,10 @@
         
         ValidationErrorMessage = null;
 
+        EventsByDate.TryGetValue(SelectedDate.Value.Date, out var existing);
         var calendar = new Core.Calendar
         {
+            Id = existing?.Id ?? 0,
             Date = SelectedDate.Value.Date,
             Note = NewNote
         };
@@ -468,12 +469,12 @@
     private void RequestDelete(DateTime date)
     {
         // Find matchende event, så vi kan slette via Id
-        var calendar = AllEvents.FirstOrDefault(e => e.Date.Date == date.Date);
+        EventsByDate.TryGetValue(date.Date, out var calendar);
         if (calendar is null)
             return;
 
         idToDelete = calendar.Id;
-        dateToDelete = calendar.Date;
+        dateToDelete = date.Date;
 
         confirmComponent?.Show();
     }
@@ -484,6 +485,7 @@
 
         // Fjern fra lokalt cache (og refresh bagefter)
         EventDates.Remove(dateToDelete);
+        EventsByDate.Remove(dateToDelete);
 
         if (SelectedDate == dateToDelete)
         {
@@ -520,6 +522,8 @@
 
         return page > totalPages ? totalPages : page;
     }
+
+    private static DateTime GetCalendarDate(DateTime value) => value.Date;
     
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

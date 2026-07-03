@@ -1,0 +1,142 @@
+name: Warm event day container
+
+on:
+  schedule:
+    # GitHub cron uses UTC. These two start slots cover 17:55 in Denmark
+    # across winter/summer time; the script below only acts when local hour is 17.
+    - cron: "55 15,16 * * *"
+    # These two stop slots cover 03:05 in Denmark across winter/summer time.
+    - cron: "5 1,2 * * *"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action to run"
+        required: true
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - warm
+          - cool
+
+permissions:
+  contents: read
+
+jobs:
+  warm-event-day-container:
+    name: Manage Container App minimum replicas
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Decide action
+        id: decide
+        env:
+          REQUESTED_ACTION: ${{ github.event.inputs.action || 'auto' }}
+        run: |
+          set -euo pipefail
+
+          local_hour="$(TZ=Europe/Copenhagen date +%H)"
+          action="${REQUESTED_ACTION}"
+
+          if [ "${action}" = "auto" ]; then
+            if [ "${local_hour}" = "17" ]; then
+              action="warm"
+            elif [ "${local_hour}" = "03" ]; then
+              action="cool"
+            else
+              action="skip"
+            fi
+          fi
+
+          echo "Local hour in Europe/Copenhagen: ${local_hour}"
+          echo "Selected action: ${action}"
+          echo "action=${action}" >> "${GITHUB_OUTPUT}"
+
+      - name: Check if there is an event today
+        id: event_today
+        if: steps.decide.outputs.action == 'warm'
+        env:
+          WHIST_API_BASE_URL: ${{ secrets.WHIST_API_BASE_URL }}
+          WHIST_REMINDER_RUN_SECRET: ${{ secrets.WHIST_REMINDER_RUN_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${WHIST_API_BASE_URL}" ]; then
+            echo "WHIST_API_BASE_URL secret is missing."
+            exit 1
+          fi
+
+          if [ -z "${WHIST_REMINDER_RUN_SECRET}" ]; then
+            echo "WHIST_REMINDER_RUN_SECRET secret is missing."
+            exit 1
+          fi
+
+          api_base_url="${WHIST_API_BASE_URL%/}"
+          status_code="$(curl --show-error --silent \
+            --output event-today-response.json \
+            --write-out "%{http_code}" \
+            --request POST \
+            --header "X-Reminder-Secret: ${WHIST_REMINDER_RUN_SECRET}" \
+            "${api_base_url}/api/reminder/event-today")"
+
+          if [ "${status_code}" = "200" ]; then
+            echo "Event found today. Container will be kept warm."
+            cat event-today-response.json
+            echo "has_event_today=true" >> "${GITHUB_OUTPUT}"
+          elif [ "${status_code}" = "204" ]; then
+            echo "No event today. Container will remain scale-to-zero."
+            echo "has_event_today=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Unexpected status code from event-today endpoint: ${status_code}"
+            cat event-today-response.json || true
+            exit 1
+          fi
+
+      - name: Plan scaling
+        id: plan
+        run: |
+          set -euo pipefail
+
+          action="${{ steps.decide.outputs.action }}"
+          has_event_today="${{ steps.event_today.outputs.has_event_today || 'false' }}"
+
+          if [ "${action}" = "warm" ] && [ "${has_event_today}" = "true" ]; then
+            echo "should_scale=true" >> "${GITHUB_OUTPUT}"
+            echo "min_replicas=1" >> "${GITHUB_OUTPUT}"
+          elif [ "${action}" = "cool" ]; then
+            echo "should_scale=true" >> "${GITHUB_OUTPUT}"
+            echo "min_replicas=0" >> "${GITHUB_OUTPUT}"
+          else
+            echo "should_scale=false" >> "${GITHUB_OUTPUT}"
+            echo "min_replicas=0" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Azure login
+        if: steps.plan.outputs.should_scale == 'true'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Update Container App minimum replicas
+        if: steps.plan.outputs.should_scale == 'true'
+        env:
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          AZURE_CONTAINER_APP_NAME: ${{ secrets.AZURE_CONTAINER_APP_NAME }}
+          MIN_REPLICAS: ${{ steps.plan.outputs.min_replicas }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${AZURE_RESOURCE_GROUP}" ]; then
+            echo "AZURE_RESOURCE_GROUP secret is missing."
+            exit 1
+          fi
+
+          if [ -z "${AZURE_CONTAINER_APP_NAME}" ]; then
+            echo "AZURE_CONTAINER_APP_NAME secret is missing."
+            exit 1
+          fi
+
+          az containerapp update \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${AZURE_CONTAINER_APP_NAME}" \
+            --min-replicas "${MIN_REPLICAS}"

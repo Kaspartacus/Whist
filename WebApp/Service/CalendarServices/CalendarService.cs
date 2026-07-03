@@ -47,6 +47,7 @@ public class CalendarService : ICalendarService
 
     private static SaveCalendarRequest ToSaveRequest(Calendar calendar) => new()
     {
+        Id = calendar.Id,
         Date = calendar.Date,
         Note = calendar.Note
     };

@@ -1,0 +1,39 @@
+name: Run reminders
+
+on:
+  schedule:
+    # GitHub cron uses UTC. 08:15 UTC is after 09:00 in Denmark all year.
+    - cron: "15 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run-reminders:
+    name: Call reminder endpoint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run reminders
+        env:
+          WHIST_API_BASE_URL: ${{ secrets.WHIST_API_BASE_URL }}
+          WHIST_REMINDER_RUN_SECRET: ${{ secrets.WHIST_REMINDER_RUN_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${WHIST_API_BASE_URL}" ]; then
+            echo "WHIST_API_BASE_URL secret is missing."
+            exit 1
+          fi
+
+          if [ -z "${WHIST_REMINDER_RUN_SECRET}" ]; then
+            echo "WHIST_REMINDER_RUN_SECRET secret is missing."
+            exit 1
+          fi
+
+          api_base_url="${WHIST_API_BASE_URL%/}"
+          curl --fail-with-body --show-error --silent \
+            --request POST \
+            --header "X-Reminder-Secret: ${WHIST_REMINDER_RUN_SECRET}" \
+            "${api_base_url}/api/reminder/run"

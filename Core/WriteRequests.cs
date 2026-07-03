@@ -44,6 +44,8 @@ public sealed class SaveRuleRequest
 
 public sealed class SaveCalendarRequest
 {
+    public int Id { get; set; }
+
     public DateTime Date { get; set; }
 
     [Required, MaxLength(100)]

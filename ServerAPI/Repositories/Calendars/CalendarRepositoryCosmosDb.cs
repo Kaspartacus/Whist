@@ -23,6 +23,11 @@ public class CalendarRepositoryCosmosDb : ICalendarRepository
         return await CosmosDbContext.ReadAllAsync<Calendar>(_cosmos.Calendar);
     }
 
+    public async Task<Calendar?> GetById(int id)
+    {
+        return await CosmosDbContext.ReadByDocumentIdAsync<Calendar>(_cosmos.Calendar, id.ToString());
+    }
+
     public async Task<Calendar?> GetByDate(DateTime date)
     {
         var utcDateOnly = DateTime.SpecifyKind(date.Date, DateTimeKind.Utc);
@@ -34,7 +39,9 @@ public class CalendarRepositoryCosmosDb : ICalendarRepository
     {
         calendarEvent.Date = DateTime.SpecifyKind(calendarEvent.Date.Date, DateTimeKind.Utc);
 
-        var existing = await GetByDate(calendarEvent.Date);
+        var existing = calendarEvent.Id > 0
+            ? await GetById(calendarEvent.Id)
+            : await GetByDate(calendarEvent.Date);
 
         if (existing is null)
         {
@@ -44,7 +51,7 @@ public class CalendarRepositoryCosmosDb : ICalendarRepository
         else
         {
             calendarEvent.Id = existing.Id;
-            calendarEvent.ReminderSent = existing.ReminderSent;
+            calendarEvent.ReminderSent = existing.Date.Date == calendarEvent.Date.Date && existing.ReminderSent;
         }
 
         TextAutoReplace.Apply(calendarEvent, _logger);
@@ -64,16 +71,16 @@ public class CalendarRepositoryCosmosDb : ICalendarRepository
         await CosmosDbContext.DeleteAsync(_cosmos.Calendar, id.ToString());
     }
 
-    public async Task<List<Calendar>> FindByExactOffsetDays(int offsetDays)
+    public async Task<List<Calendar>> FindPendingReminders(int reminderDaysAhead)
     {
         var tz = GetCopenhagenTimeZone();
         var todayLocal = TimeZoneInfo.ConvertTime(DateTime.UtcNow, tz).Date;
-        var targetLocalDate = todayLocal.AddDays(offsetDays);
-        var targetUtcDate = DateTime.SpecifyKind(targetLocalDate, DateTimeKind.Utc);
+        var latestReminderDate = DateTime.SpecifyKind(todayLocal.AddDays(reminderDaysAhead), DateTimeKind.Utc);
+        var todayUtcDate = DateTime.SpecifyKind(todayLocal, DateTimeKind.Utc);
 
         var calendarEvents = await GetAll();
         return calendarEvents
-            .Where(x => x.Date == targetUtcDate && !x.ReminderSent)
+            .Where(x => x.Date >= todayUtcDate && x.Date <= latestReminderDate && !x.ReminderSent)
             .ToList();
     }
 
