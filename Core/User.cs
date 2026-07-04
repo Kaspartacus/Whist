@@ -4,7 +4,7 @@ namespace Core;
 
 /// <summary>
 /// Bruger i systemet.
-/// Indeholder profil-data. Fines findes kun for bagudkompatibilitet med gamle user-dokumenter.
+/// Indeholder profil-data.
 /// </summary>
 public class User
 {
@@ -54,6 +54,4 @@ public class User
     [MaxLength(500)]
     public string ImageUrl { get; set; } = "";
 
-    /// <summary>Legacy embedded bøder. Nye bøder ligger i fines-containeren.</summary>
-    public ICollection<Fine> Fines { get; set; } = new List<Fine>();
 }

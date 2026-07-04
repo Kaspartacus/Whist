@@ -148,15 +148,7 @@
                 <option value="">Alle</option>
                 <option value="true">✅ Betalt</option>
                 <option value="false">❌ Ikke betalt</option>
-            </select>
-        </div>
-
-        <div class="filter-item dropdown">
-            <label>Visning:</label>
-            <select class="filter-select" @bind="filterArchiveStatus" @bind:after="OnFiltersChanged">
-                <option value="false">Aktive</option>
-                <option value="true">Arkiv</option>
-                <option value="">Alle</option>
+                <option value="archived">Arkiv</option>
             </select>
         </div>
     </div>
@@ -259,7 +251,6 @@
     private decimal? filterMinAmount = null;
     private decimal? filterMaxAmount = null;
     private string? filterPaidStatus = null;
-    private string? filterArchiveStatus = "false";
     private async Task OnFiltersChanged() => await LoadPage(1);
 
     // -----------------------------
@@ -421,7 +412,7 @@
     {
         CurrentPage = page < 1 ? 1 : page;
 
-        // Henter server-filtreret tabelside. Standardvisning er aktive bøder.
+        // Henter server-filtreret tabelside. Standardstatus viser aktive bøder.
         var result = await FineService.GetPaged(
             CurrentPage,
             PageSize,
@@ -460,10 +451,10 @@
         AllFinesForSummary = (await FineService.GetAll(includeArchived: true)).ToList();
     }
     
-    // Filtrere status på om en bøde er betalt
+    // Filtrerer betalingsstatus. Arkiv-valget håndteres separat via ParseArchiveStatus.
     private bool? ParsePaidStatus()
     {
-        if (string.IsNullOrWhiteSpace(filterPaidStatus))
+        if (string.IsNullOrWhiteSpace(filterPaidStatus) || filterPaidStatus == "archived")
             return null;
         
         return filterPaidStatus == "true";
@@ -471,9 +462,6 @@
 
     private bool? ParseArchiveStatus()
     {
-        if (string.IsNullOrWhiteSpace(filterArchiveStatus))
-            return null;
-
-        return filterArchiveStatus == "true";
+        return filterPaidStatus == "archived";
     }
 }
