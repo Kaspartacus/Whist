@@ -142,6 +142,24 @@ public sealed class CosmosDbContext
         }
     }
 
+    public async Task<int> GetNextIdAtLeastAsync(
+        string counterName,
+        int minimumNextId,
+        CancellationToken cancellationToken = default)
+    {
+        var nextId = await GetNextIdAsync(counterName, cancellationToken);
+        if (nextId >= minimumNextId)
+            return nextId;
+
+        var counter = new CosmosCounter { Name = counterName, Seq = minimumNextId };
+        await Counters.UpsertItemAsync(
+            new CosmosItem<CosmosCounter>(counterName, counter),
+            new PartitionKey(counterName),
+            cancellationToken: cancellationToken);
+
+        return minimumNextId;
+    }
+
     private static Container CreateContainer(Database database, string name)
     {
         return database

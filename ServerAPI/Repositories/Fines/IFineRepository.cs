@@ -11,32 +11,32 @@ public interface IFineRepository
     /// <summary>
     /// Henter alle bøder (på tværs af brugere).
     /// </summary>
-    Fine[] GetAll();
+    Task<Fine[]> GetAll();
 
     /// <summary>
     /// Henter bøder for én bruger.
     /// </summary>
-    Fine[] GetByUserId(int userId);
+    Task<Fine[]> GetByUserId(int userId);
 
     /// <summary>
     /// Tilføjer en ny bøde til en bruger.
     /// </summary>
-    void AddFine(Fine fine);
+    Task AddFine(Fine fine);
 
     /// <summary>
     /// Opdaterer en eksisterende bøde (fx markering som betalt).
     /// </summary>
-    void Update(Fine fine);
+    Task Update(Fine fine);
 
     /// <summary>
     /// Sletter en bøde for en given bruger.
     /// </summary>
-    void Delete(int userId, int id);
+    Task Delete(int userId, int id);
 
     /// <summary>
     /// Henter bøder pagineret. Kan filtrere på userId.
     /// </summary>
-    PagedResult<Fine> GetPaged(
+    Task<PagedResult<Fine>> GetPaged(
         int page,
         int pageSize,
         int? userId = null,

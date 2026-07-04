@@ -62,11 +62,11 @@ public sealed class UserController : ControllerBase
             return BadRequest(new { message = "Adgangskode er påkrævet." });
 
         var existingUsers = await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users, cancellationToken);
-        var lastUser = existingUsers.MaxBy(user => user.Id);
+        var minimumNextUserId = existingUsers.Any() ? existingUsers.Max(user => user.Id) + 1 : 1;
 
         var user = new ApplicationUser
         {
-            Id = (lastUser?.Id ?? 0) + 1,
+            Id = await _cosmos.GetNextIdAtLeastAsync("users", minimumNextUserId, cancellationToken),
             UserName = request.Email.Trim(),
             Email = request.Email.Trim(),
             EmailConfirmed = true,

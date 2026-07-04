@@ -20,11 +20,9 @@ public class FineRepositoryCosmosDb : IFineRepository
         _logger = logger;
     }
 
-    public Fine[] GetAll()
+    public async Task<Fine[]> GetAll()
     {
-        var allUsers = CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users)
-            .GetAwaiter()
-            .GetResult();
+        var allUsers = await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users);
 
         return allUsers
             .SelectMany(u => u.Fines)
@@ -32,11 +30,9 @@ public class FineRepositoryCosmosDb : IFineRepository
             .ToArray();
     }
 
-    public Fine[] GetByUserId(int userId)
+    public async Task<Fine[]> GetByUserId(int userId)
     {
-        var user = CosmosDbContext.ReadByDocumentIdAsync<ApplicationUser>(_cosmos.Users, userId.ToString())
-            .GetAwaiter()
-            .GetResult();
+        var user = await CosmosDbContext.ReadByDocumentIdAsync<ApplicationUser>(_cosmos.Users, userId.ToString());
 
         return user?.Fines
                    .OrderByDescending(f => f.Date)
@@ -44,11 +40,9 @@ public class FineRepositoryCosmosDb : IFineRepository
                ?? Array.Empty<Fine>();
     }
 
-    public void AddFine(Fine fine)
+    public async Task AddFine(Fine fine)
     {
-        var user = CosmosDbContext.ReadByDocumentIdAsync<ApplicationUser>(_cosmos.Users, fine.UserId.ToString())
-            .GetAwaiter()
-            .GetResult();
+        var user = await CosmosDbContext.ReadByDocumentIdAsync<ApplicationUser>(_cosmos.Users, fine.UserId.ToString());
 
         if (user == null)
         {
@@ -63,16 +57,12 @@ public class FineRepositoryCosmosDb : IFineRepository
 
         user.Fines.Add(fine);
 
-        CosmosDbContext.UpsertAsync(_cosmos.Users, user.Id.ToString(), user)
-            .GetAwaiter()
-            .GetResult();
+        await CosmosDbContext.UpsertAsync(_cosmos.Users, user.Id.ToString(), user);
     }
 
-    public void Update(Fine fine)
+    public async Task Update(Fine fine)
     {
-        var user = CosmosDbContext.ReadByDocumentIdAsync<ApplicationUser>(_cosmos.Users, fine.UserId.ToString())
-            .GetAwaiter()
-            .GetResult();
+        var user = await CosmosDbContext.ReadByDocumentIdAsync<ApplicationUser>(_cosmos.Users, fine.UserId.ToString());
 
         if (user == null)
         {
@@ -89,9 +79,7 @@ public class FineRepositoryCosmosDb : IFineRepository
             finesList[index] = fine;
             user.Fines = finesList;
 
-            CosmosDbContext.UpsertAsync(_cosmos.Users, user.Id.ToString(), user)
-                .GetAwaiter()
-                .GetResult();
+            await CosmosDbContext.UpsertAsync(_cosmos.Users, user.Id.ToString(), user);
         }
         else
         {
@@ -99,11 +87,9 @@ public class FineRepositoryCosmosDb : IFineRepository
         }
     }
 
-    public void Delete(int userId, int id)
+    public async Task Delete(int userId, int id)
     {
-        var user = CosmosDbContext.ReadByDocumentIdAsync<ApplicationUser>(_cosmos.Users, userId.ToString())
-            .GetAwaiter()
-            .GetResult();
+        var user = await CosmosDbContext.ReadByDocumentIdAsync<ApplicationUser>(_cosmos.Users, userId.ToString());
 
         if (user == null)
         {
@@ -117,12 +103,10 @@ public class FineRepositoryCosmosDb : IFineRepository
         if (user.Fines.Count == beforeCount)
             _logger.LogWarning("Fine {FineId} was not deleted because it was not found for user {UserId}.", id, userId);
 
-        CosmosDbContext.UpsertAsync(_cosmos.Users, user.Id.ToString(), user)
-            .GetAwaiter()
-            .GetResult();
+        await CosmosDbContext.UpsertAsync(_cosmos.Users, user.Id.ToString(), user);
     }
 
-    public PagedResult<Fine> GetPaged(
+    public async Task<PagedResult<Fine>> GetPaged(
         int page,
         int pageSize,
         int? userId = null,
@@ -138,9 +122,7 @@ public class FineRepositoryCosmosDb : IFineRepository
 
         var skip = (page - 1) * pageSize;
 
-        var users = CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users)
-            .GetAwaiter()
-            .GetResult();
+        var users = await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users);
 
         if (userId.HasValue)
             users = users.Where(u => u.Id == userId.Value).ToList();

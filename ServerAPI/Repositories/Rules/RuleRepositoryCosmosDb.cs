@@ -27,7 +27,8 @@ public class RuleRepositoryCosmosDb : IRuleRepository
     public async Task<Rule> Add(Rule rule)
     {
         var rules = await GetAll();
-        rule.Id = rules.Any() ? rules.Max(r => r.Id) + 1 : 1;
+        var minimumNextRuleId = rules.Any() ? rules.Max(r => r.Id) + 1 : 1;
+        rule.Id = await _cosmos.GetNextIdAtLeastAsync("rules", minimumNextRuleId);
 
         TextAutoReplace.Apply(rule, _logger);
 

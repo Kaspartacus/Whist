@@ -84,6 +84,15 @@ builder.Services
     .Validate(options => options.RefreshTokenDays is >= 1 and <= 30, "Jwt:RefreshTokenDays must be between 1 and 30.")
     .ValidateOnStart();
 
+builder.Services
+    .AddOptions<SmtpOptions>()
+    .Bind(builder.Configuration.GetSection(SmtpOptions.SectionName))
+    .Validate(options => !string.IsNullOrWhiteSpace(options.Host), "Smtp:Host is required.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.User), "Smtp:User is required.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.Password), "Smtp:Password is required.")
+    .Validate(options => options.Port is > 0 and <= 65535, "Smtp:Port must be between 1 and 65535.")
+    .ValidateOnStart();
+
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("JWT configuration is required.");
 
@@ -363,4 +372,16 @@ static string? GetAuthenticatedUserId(HttpContext context)
 {
     var userId = context.User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
     return string.IsNullOrWhiteSpace(userId) ? null : $"user:{userId}";
+}
+
+public sealed class SmtpOptions
+{
+    public const string SectionName = "Smtp";
+
+    public string Host { get; set; } = "";
+    public int Port { get; set; } = 587;
+    public bool EnableSsl { get; set; } = true;
+    public string User { get; set; } = "";
+    public string Password { get; set; } = "";
+    public string? From { get; set; }
 }
