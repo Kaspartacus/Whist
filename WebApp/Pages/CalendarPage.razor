@@ -420,12 +420,13 @@
         
 
         // --- Gem ---
-        if (calendar is not null)
-        {
-            await CalendarService.Save(calendar);
-        }
-        
-        await LoadEvents();
+        var savedCalendar = await CalendarService.Save(calendar);
+        var savedDate = GetCalendarDate(savedCalendar.Date);
+        EventDates[savedDate] = savedCalendar.Note;
+        EventsByDate[savedDate] = savedCalendar;
+
+        PastCurrentPage = NormalizePage(PastCurrentPage, PastTotalPages);
+        UpcomingCurrentPage = NormalizePage(UpcomingCurrentPage, UpcomingTotalPages);
 
         CloseModal();
     }

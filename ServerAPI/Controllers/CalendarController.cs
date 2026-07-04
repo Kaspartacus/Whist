@@ -60,7 +60,7 @@ public class CalendarController : ControllerBase
             calendar.Id,
             GetCurrentUserId(),
             calendar.Date);
-        return Ok();
+        return Ok(calendar);
     }
 
     /// <summary>Sletter et event ud fra id.</summary>

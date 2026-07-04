@@ -31,11 +31,12 @@ public class CalendarService : ICalendarService
     }
 
     /// <inheritdoc />
-    public async Task Save(Calendar calendar)
+    public async Task<Calendar> Save(Calendar calendar)
     {
         // Backend håndterer add/update (opret/ret) på samme endpoint.
         var res = await _http.PostAsJsonAsync(BaseRoute, ToSaveRequest(calendar));
         await res.EnsureSuccessWithApiMessageAsync();
+        return await res.Content.ReadFromJsonAsync<Calendar>() ?? calendar;
     }
 
     /// <inheritdoc />
