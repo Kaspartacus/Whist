@@ -11,12 +11,12 @@ public interface IFineRepository
     /// <summary>
     /// Henter alle bøder (på tværs af brugere).
     /// </summary>
-    Task<Fine[]> GetAll();
+    Task<Fine[]> GetAll(bool includeArchived = false);
 
     /// <summary>
     /// Henter bøder for én bruger.
     /// </summary>
-    Task<Fine[]> GetByUserId(int userId);
+    Task<Fine[]> GetByUserId(int userId, bool includeArchived = false);
 
     /// <summary>
     /// Tilføjer en ny bøde til en bruger.
@@ -45,5 +45,6 @@ public interface IFineRepository
         DateTime? toDate = null,
         decimal? minAmount = null,
         decimal? maxAmount = null,
-        bool? isPaid = null);
+        bool? isPaid = null,
+        bool? isArchived = null);
 }

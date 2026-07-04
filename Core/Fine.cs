@@ -28,4 +28,13 @@ public class Fine
 
     /// <summary>Om bøden er betalt.</summary>
     public bool IsPaid { get; set; } = false;
+
+    /// <summary>Hvornår bøden blev markeret som betalt.</summary>
+    public DateTime? PaidAt { get; set; }
+
+    /// <summary>Om bøden er arkiveret og derfor skjult i standardvisningen.</summary>
+    public bool IsArchived { get; set; } = false;
+
+    /// <summary>Hvornår bøden blev arkiveret.</summary>
+    public DateTime? ArchivedAt { get; set; }
 }

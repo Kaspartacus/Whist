@@ -20,17 +20,17 @@ public class FineService : IFineService
     }
 
     /// <inheritdoc />
-    public async Task<Fine[]> GetAll()
+    public async Task<Fine[]> GetAll(bool includeArchived = false)
     {
         // Henter alle bøder. Returnerer tomt array hvis API svarer null.
-        return await _http.GetFromJsonAsync<Fine[]>("api/fine") ?? Array.Empty<Fine>();
+        return await _http.GetFromJsonAsync<Fine[]>($"api/fine?includeArchived={includeArchived.ToString().ToLowerInvariant()}") ?? Array.Empty<Fine>();
     }
 
     /// <inheritdoc />
-    public async Task<Fine[]> GetByUserId(int userId)
+    public async Task<Fine[]> GetByUserId(int userId, bool includeArchived = false)
     {
         // Henter bøder for specifik bruger. Returnerer tomt array hvis API svarer null.
-        return await _http.GetFromJsonAsync<Fine[]>($"api/fine/user/{userId}") ?? Array.Empty<Fine>();
+        return await _http.GetFromJsonAsync<Fine[]>($"api/fine/user/{userId}?includeArchived={includeArchived.ToString().ToLowerInvariant()}") ?? Array.Empty<Fine>();
     }
 
     /// <inheritdoc />
@@ -61,7 +61,7 @@ public class FineService : IFineService
     public Task<PagedResult<Fine>> GetPaged(
         int page, int pageSize, int? userId = null,
         string? searchTerm = null, DateTime? fromDate = null, DateTime? toDate = null,
-        decimal? minAmount = null, decimal? maxAmount = null, bool? isPaid = null)
+        decimal? minAmount = null, decimal? maxAmount = null, bool? isPaid = null, bool? isArchived = null)
     {
         var url = $"api/fine/paged?page={page}&pageSize={pageSize}";
 
@@ -72,6 +72,7 @@ public class FineService : IFineService
         if (minAmount.HasValue) url += $"&minAmount={minAmount.Value}";
         if (maxAmount.HasValue) url += $"&maxAmount={maxAmount.Value}";
         if (isPaid.HasValue) url += $"&isPaid={isPaid.Value.ToString().ToLowerInvariant()}";
+        if (isArchived.HasValue) url += $"&isArchived={isArchived.Value.ToString().ToLowerInvariant()}";
 
         return _http.GetFromJsonAsync<PagedResult<Fine>>(url)!;
     }
@@ -83,6 +84,9 @@ public class FineService : IFineService
         Amount = fine.Amount,
         Comment = fine.Comment,
         Date = fine.Date,
-        IsPaid = fine.IsPaid
+        IsPaid = fine.IsPaid,
+        PaidAt = fine.PaidAt,
+        IsArchived = fine.IsArchived,
+        ArchivedAt = fine.ArchivedAt
     };
 }
