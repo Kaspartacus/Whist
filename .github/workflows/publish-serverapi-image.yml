@@ -17,7 +17,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/whist-serverapi
+  IMAGE_NAME: kaspartacus/whist-serverapi
 
 jobs:
   build-and-push:
