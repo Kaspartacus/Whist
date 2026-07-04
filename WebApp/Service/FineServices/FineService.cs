@@ -85,8 +85,6 @@ public class FineService : IFineService
         Comment = fine.Comment,
         Date = fine.Date,
         IsPaid = fine.IsPaid,
-        PaidAt = fine.PaidAt,
-        IsArchived = fine.IsArchived,
-        ArchivedAt = fine.ArchivedAt
+        PaidAt = fine.PaidAt
     };
 }
