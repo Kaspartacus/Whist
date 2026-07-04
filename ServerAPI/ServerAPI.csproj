@@ -20,9 +20,4 @@
       <ProjectReference Include="..\Core\Core.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="wwwroot\uploads\" />
-      <Folder Include="wwwroot\uploads\2025.07.14\" />
-    </ItemGroup>
-
 </Project>

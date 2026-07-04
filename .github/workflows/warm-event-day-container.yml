@@ -32,13 +32,27 @@ jobs:
         id: decide
         env:
           REQUESTED_ACTION: ${{ github.event.inputs.action || 'auto' }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule || '' }}
         run: |
           set -euo pipefail
 
           local_hour="$(TZ=Europe/Copenhagen date +%H)"
           action="${REQUESTED_ACTION}"
 
-          if [ "${action}" = "auto" ]; then
+          if [ "${EVENT_NAME}" = "schedule" ]; then
+            case "${EVENT_SCHEDULE}" in
+              "55 15,16 * * *")
+                action="warm"
+                ;;
+              "5 1,2 * * *")
+                action="cool"
+                ;;
+              *)
+                action="skip"
+                ;;
+            esac
+          elif [ "${action}" = "auto" ]; then
             if [ "${local_hour}" = "17" ]; then
               action="warm"
             elif [ "${local_hour}" = "03" ]; then
@@ -49,6 +63,8 @@ jobs:
           fi
 
           echo "Local hour in Europe/Copenhagen: ${local_hour}"
+          echo "Event name: ${EVENT_NAME}"
+          echo "Event schedule: ${EVENT_SCHEDULE}"
           echo "Selected action: ${action}"
           echo "action=${action}" >> "${GITHUB_OUTPUT}"
 

@@ -297,8 +297,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Static files. Legacy uploaded files under wwwroot/uploads can still be served,
-// while new uploads are stored in Azure Blob Storage.
+// Static files for any bundled backend assets. User-uploaded images live in Azure Blob Storage.
 app.UseStaticFiles();
 
 // Redirect HTTP -> HTTPS
