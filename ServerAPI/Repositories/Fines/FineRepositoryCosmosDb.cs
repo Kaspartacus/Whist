@@ -22,7 +22,7 @@ public class FineRepositoryCosmosDb : IFineRepository
 
     public async Task<Fine[]> GetAll(bool includeArchived = false)
     {
-        var fines = await CosmosDbContext.ReadAllAsync<Fine>(_cosmos.Fines);
+        var fines = await ReadFinesWithArchiveStateAsync();
         return fines
             .Where(f => includeArchived || !f.IsArchived)
             .OrderByDescending(f => f.Date)
@@ -31,7 +31,7 @@ public class FineRepositoryCosmosDb : IFineRepository
 
     public async Task<Fine[]> GetByUserId(int userId, bool includeArchived = false)
     {
-        var fines = await CosmosDbContext.ReadAllAsync<Fine>(_cosmos.Fines);
+        var fines = await ReadFinesWithArchiveStateAsync();
         return fines
             .Where(f => f.UserId == userId)
             .Where(f => includeArchived || !f.IsArchived)
@@ -55,6 +55,7 @@ public class FineRepositoryCosmosDb : IFineRepository
         fine.PaidAt = fine.IsPaid ? DateTime.UtcNow : null;
         fine.IsArchived = false;
         fine.ArchivedAt = null;
+        ApplyArchiveRule(fine);
 
         TextAutoReplace.Apply(fine, _logger);
 
@@ -75,9 +76,7 @@ public class FineRepositoryCosmosDb : IFineRepository
         fine.PaidAt = fine.IsPaid
             ? existing.PaidAt ?? DateTime.UtcNow
             : null;
-        fine.ArchivedAt = fine.IsArchived
-            ? existing.ArchivedAt ?? DateTime.UtcNow
-            : null;
+        ApplyArchiveRule(fine);
 
         TextAutoReplace.Apply(fine, _logger);
 
@@ -111,7 +110,7 @@ public class FineRepositoryCosmosDb : IFineRepository
         var skip = (page - 1) * pageSize;
 
         var users = await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users);
-        var fines = await CosmosDbContext.ReadAllAsync<Fine>(_cosmos.Fines);
+        var fines = await ReadFinesWithArchiveStateAsync();
 
         if (userId.HasValue)
             fines = fines.Where(f => f.UserId == userId.Value).ToList();
@@ -164,4 +163,40 @@ public class FineRepositoryCosmosDb : IFineRepository
 
     private static string FineDocumentId(int userId, int fineId)
         => $"{userId}:{fineId}";
+
+    private async Task<List<Fine>> ReadFinesWithArchiveStateAsync()
+    {
+        var fines = await CosmosDbContext.ReadAllAsync<Fine>(_cosmos.Fines);
+        var changedFines = fines.Where(ApplyArchiveRule).ToList();
+
+        foreach (var fine in changedFines)
+            await CosmosDbContext.UpsertAsync(_cosmos.Fines, FineDocumentId(fine), fine);
+
+        if (changedFines.Count > 0)
+            _logger.LogInformation("Updated archive state for {FineCount} fines.", changedFines.Count);
+
+        return fines;
+    }
+
+    private static bool ApplyArchiveRule(Fine fine)
+    {
+        var originalIsArchived = fine.IsArchived;
+        var originalArchivedAt = fine.ArchivedAt;
+
+        if (!fine.IsPaid || fine.PaidAt is null)
+        {
+            fine.IsArchived = false;
+            fine.ArchivedAt = null;
+        }
+        else
+        {
+            var archiveDate = fine.PaidAt.Value.ToUniversalTime().AddYears(1);
+            var shouldArchive = DateTime.UtcNow >= archiveDate;
+
+            fine.IsArchived = shouldArchive;
+            fine.ArchivedAt = shouldArchive ? archiveDate : null;
+        }
+
+        return fine.IsArchived != originalIsArchived || fine.ArchivedAt != originalArchivedAt;
+    }
 }

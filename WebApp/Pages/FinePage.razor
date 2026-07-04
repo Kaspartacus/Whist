@@ -145,10 +145,10 @@
         <div class="filter-item dropdown">
             <label>Status:</label>
             <select class="filter-select" @bind="filterPaidStatus" @bind:after="OnFiltersChanged">
-                <option value="">Alle</option>
+                <option value="">📋 Alle</option>
                 <option value="true">✅ Betalt</option>
                 <option value="false">❌ Ikke betalt</option>
-                <option value="archived">Arkiv</option>
+                <option value="archived">📦 Arkiv</option>
             </select>
         </div>
     </div>
@@ -187,9 +187,6 @@
                             @if (CurrentUser is not null && fine.UserId != CurrentUser.Id)
                             {
                                 <button class="icon-button blue" @onclick="() => EditFine(fine)">✏️</button>
-                                <button class="icon-button blue" @onclick="() => ToggleArchive(fine)">
-                                    @(fine.IsArchived ? "↩️" : "📦")
-                                </button>
                                 <button class="icon-button red" @onclick="() => ConfirmDelete(fine)">🗑️</button>
                             }
                         </Authorized>
@@ -377,14 +374,6 @@
         FineToDelete = null; // vigtig: ryd state
         if (addFineComponent is not null)
             await addFineComponent.Show(fine);
-    }
-
-    private async Task ToggleArchive(Fine fine)
-    {
-        fine.IsArchived = !fine.IsArchived;
-        fine.ArchivedAt = fine.IsArchived ? DateTime.UtcNow : null;
-        await FineService.Update(fine);
-        await ReloadFines();
     }
 
     // -----------------------------
