@@ -20,10 +20,6 @@ public sealed class SaveFineRequest
     public bool IsPaid { get; set; }
 
     public DateTime? PaidAt { get; set; }
-
-    public bool IsArchived { get; set; }
-
-    public DateTime? ArchivedAt { get; set; }
 }
 
 public sealed class SaveHighlightRequest

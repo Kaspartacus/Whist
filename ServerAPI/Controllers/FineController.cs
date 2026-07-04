@@ -95,9 +95,7 @@ public class FineController : ControllerBase
             Amount = request.Amount,
             Comment = request.Comment?.Trim() ?? "",
             IsPaid = request.IsPaid,
-            PaidAt = request.IsPaid ? DateTime.UtcNow : null,
-            IsArchived = false,
-            ArchivedAt = null
+            PaidAt = request.IsPaid ? DateTime.UtcNow : null
         };
 
         await _fineRepository.AddFine(fine);
@@ -134,9 +132,7 @@ public class FineController : ControllerBase
             Comment = request.Comment?.Trim() ?? "",
             Date = request.Date.Value,
             IsPaid = request.IsPaid,
-            PaidAt = request.PaidAt,
-            IsArchived = request.IsArchived,
-            ArchivedAt = request.ArchivedAt
+            PaidAt = request.PaidAt
         };
 
         await _fineRepository.Update(fine);
