@@ -11,12 +11,12 @@ public interface IFineService
     /// <summary>
     /// Henter alle bøder (bruges primært til overblik/summary).
     /// </summary>
-    Task<Fine[]> GetAll();
+    Task<Fine[]> GetAll(bool includeArchived = false);
 
     /// <summary>
     /// Henter alle bøder for en bestemt bruger.
     /// </summary>
-    Task<Fine[]> GetByUserId(int userId);
+    Task<Fine[]> GetByUserId(int userId, bool includeArchived = false);
 
     /// <summary>
     /// Opretter en ny bøde.
@@ -46,5 +46,6 @@ public interface IFineService
         DateTime? toDate = null,
         decimal? minAmount = null,
         decimal? maxAmount = null,
-        bool? isPaid = null);
+        bool? isPaid = null,
+        bool? isArchived = null);
 }

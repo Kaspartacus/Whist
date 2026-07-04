@@ -35,9 +35,9 @@ public class FineController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpGet]
-    public async Task<ActionResult<Fine[]>> GetAll()
+    public async Task<ActionResult<Fine[]>> GetAll([FromQuery] bool includeArchived = false)
     {
-        return await _fineRepository.GetAll();
+        return await _fineRepository.GetAll(includeArchived);
     }
 
     /// <summary>
@@ -45,9 +45,9 @@ public class FineController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpGet("user/{userId}")]
-    public async Task<ActionResult<Fine[]>> GetByUserId(int userId)
+    public async Task<ActionResult<Fine[]>> GetByUserId(int userId, [FromQuery] bool includeArchived = false)
     {
-        return await _fineRepository.GetByUserId(userId);
+        return await _fineRepository.GetByUserId(userId, includeArchived);
     }
 
     /// <summary>
@@ -65,12 +65,13 @@ public class FineController : ControllerBase
         [FromQuery] DateTime? toDate = null,
         [FromQuery] decimal? minAmount = null,
         [FromQuery] decimal? maxAmount = null,
-        [FromQuery] bool? isPaid = null)
+        [FromQuery] bool? isPaid = null,
+        [FromQuery] bool? isArchived = null)
     {
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        var result = await _fineRepository.GetPaged(page, pageSize, userId, searchTerm, fromDate, toDate, minAmount, maxAmount, isPaid);
+        var result = await _fineRepository.GetPaged(page, pageSize, userId, searchTerm, fromDate, toDate, minAmount, maxAmount, isPaid, isArchived);
         return Ok(result);
     }
 
@@ -93,7 +94,10 @@ public class FineController : ControllerBase
             UserId = request.UserId,
             Amount = request.Amount,
             Comment = request.Comment?.Trim() ?? "",
-            IsPaid = request.IsPaid
+            IsPaid = request.IsPaid,
+            PaidAt = request.IsPaid ? DateTime.UtcNow : null,
+            IsArchived = false,
+            ArchivedAt = null
         };
 
         await _fineRepository.AddFine(fine);
@@ -129,7 +133,10 @@ public class FineController : ControllerBase
             Amount = request.Amount,
             Comment = request.Comment?.Trim() ?? "",
             Date = request.Date.Value,
-            IsPaid = request.IsPaid
+            IsPaid = request.IsPaid,
+            PaidAt = request.PaidAt,
+            IsArchived = request.IsArchived,
+            ArchivedAt = request.ArchivedAt
         };
 
         await _fineRepository.Update(fine);

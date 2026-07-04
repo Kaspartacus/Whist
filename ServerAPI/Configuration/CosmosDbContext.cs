@@ -8,6 +8,7 @@ public sealed class CosmosDbContext
     public Container Users { get; }
     public Container Roles { get; }
     public Container RefreshTokens { get; }
+    public Container Fines { get; }
     public Container Highlights { get; }
     public Container Counters { get; }
     public Container Points { get; }
@@ -42,6 +43,7 @@ public sealed class CosmosDbContext
         Users = CreateContainer(database, GetRequiredContainerName(configuration, "Users"));
         Roles = CreateContainer(database, GetRequiredContainerName(configuration, "Roles"));
         RefreshTokens = CreateContainer(database, GetRequiredContainerName(configuration, "RefreshTokens"));
+        Fines = CreateContainer(database, GetRequiredContainerName(configuration, "Fines"));
         Highlights = CreateContainer(database, GetRequiredContainerName(configuration, "Highlights"));
         Counters = CreateContainer(database, GetRequiredContainerName(configuration, "Counters"));
         Points = CreateContainer(database, GetRequiredContainerName(configuration, "Points"));

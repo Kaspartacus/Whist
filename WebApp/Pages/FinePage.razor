@@ -150,6 +150,15 @@
                 <option value="false">❌ Ikke betalt</option>
             </select>
         </div>
+
+        <div class="filter-item dropdown">
+            <label>Visning:</label>
+            <select class="filter-select" @bind="filterArchiveStatus" @bind:after="OnFiltersChanged">
+                <option value="false">Aktive</option>
+                <option value="true">Arkiv</option>
+                <option value="">Alle</option>
+            </select>
+        </div>
     </div>
 </div>
 
@@ -186,6 +195,9 @@
                             @if (CurrentUser is not null && fine.UserId != CurrentUser.Id)
                             {
                                 <button class="icon-button blue" @onclick="() => EditFine(fine)">✏️</button>
+                                <button class="icon-button blue" @onclick="() => ToggleArchive(fine)">
+                                    @(fine.IsArchived ? "↩️" : "📦")
+                                </button>
                                 <button class="icon-button red" @onclick="() => ConfirmDelete(fine)">🗑️</button>
                             }
                         </Authorized>
@@ -219,7 +231,7 @@
     // State
     // -----------------------------
     private List<Fine> Fines = new();                 // Det der vises i tabellen (current page)
-    private List<Fine> AllFinesForSummary = new();    // Bruges til kort/oversigter (alle bøder)
+    private List<Fine> AllFinesForSummary = new();    // Bruges til kort/oversigter (aktive + arkiverede bøder)
     private List<User> Users = new();                 // Alle brugere
     private User? CurrentUser;                        // Logget ind bruger
 
@@ -247,6 +259,7 @@
     private decimal? filterMinAmount = null;
     private decimal? filterMaxAmount = null;
     private string? filterPaidStatus = null;
+    private string? filterArchiveStatus = "false";
     private async Task OnFiltersChanged() => await LoadPage(1);
 
     // -----------------------------
@@ -278,7 +291,7 @@
         => AllFinesForSummary.Count(f => f.UserId == userId && f.Comment == "Stjerne" && !f.IsPaid);
 
     // -----------------------------
-    // Filtreret bøder ud fra dato
+    // Server-filtrerede bøder for den aktuelle tabelside
     // -----------------------------
     private IEnumerable<Fine> FilteredFines => Fines.OrderByDescending(f => f.Date);
 
@@ -336,6 +349,7 @@
         foreach (var fine in unpaidFines)
         {
             fine.IsPaid = true;
+            fine.PaidAt ??= DateTime.UtcNow;
             await FineService.Update(fine);
         }
 
@@ -374,6 +388,14 @@
             await addFineComponent.Show(fine);
     }
 
+    private async Task ToggleArchive(Fine fine)
+    {
+        fine.IsArchived = !fine.IsArchived;
+        fine.ArchivedAt = fine.IsArchived ? DateTime.UtcNow : null;
+        await FineService.Update(fine);
+        await ReloadFines();
+    }
+
     // -----------------------------
     // Stjerne-bøde
     // -----------------------------
@@ -399,7 +421,7 @@
     {
         CurrentPage = page < 1 ? 1 : page;
 
-        // Bemærk: din GetPaged endpoint server-side pager data (godt!)
+        // Henter server-filtreret tabelside. Standardvisning er aktive bøder.
         var result = await FineService.GetPaged(
             CurrentPage,
             PageSize,
@@ -409,7 +431,8 @@
             toDate: filterToDate,
             minAmount: filterMinAmount,
             maxAmount: filterMaxAmount,
-            isPaid: ParsePaidStatus());
+            isPaid: ParsePaidStatus(),
+            isArchived: ParseArchiveStatus());
 
         Fines = result.Items.ToList();
         TotalCount = result.TotalCount;
@@ -431,10 +454,10 @@
         StateHasChanged();
     }
 
-    // Henter ALLE bøder (bruges kun til kort/oversigt)
+    // Henter alle bøder inkl. arkiv, så samlet overblik stadig tæller historik med.
     private async Task LoadSummary()
     {
-        AllFinesForSummary = (await FineService.GetAll()).ToList();
+        AllFinesForSummary = (await FineService.GetAll(includeArchived: true)).ToList();
     }
     
     // Filtrere status på om en bøde er betalt
@@ -444,5 +467,13 @@
             return null;
         
         return filterPaidStatus == "true";
+    }
+
+    private bool? ParseArchiveStatus()
+    {
+        if (string.IsNullOrWhiteSpace(filterArchiveStatus))
+            return null;
+
+        return filterArchiveStatus == "true";
     }
 }
