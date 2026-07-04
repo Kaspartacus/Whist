@@ -7,14 +7,12 @@ namespace ServerAPI.Repositories.Fines;
 
 /// <summary>
 /// Cosmos DB implementation af IFineRepository.
-/// Bøder gemmes i egen container. Eventuelle gamle embedded bøder migreres automatisk ved første brug.
+/// Bøder gemmes i egen container.
 /// </summary>
 public class FineRepositoryCosmosDb : IFineRepository
 {
     private readonly CosmosDbContext _cosmos;
     private readonly ILogger<FineRepositoryCosmosDb> _logger;
-    private readonly SemaphoreSlim _migrationLock = new(1, 1);
-    private bool _embeddedFinesMigrated;
 
     public FineRepositoryCosmosDb(CosmosDbContext cosmos, ILogger<FineRepositoryCosmosDb> logger)
     {
@@ -24,8 +22,6 @@ public class FineRepositoryCosmosDb : IFineRepository
 
     public async Task<Fine[]> GetAll(bool includeArchived = false)
     {
-        await EnsureEmbeddedFinesMigrated();
-
         var fines = await CosmosDbContext.ReadAllAsync<Fine>(_cosmos.Fines);
         return fines
             .Where(f => includeArchived || !f.IsArchived)
@@ -35,8 +31,6 @@ public class FineRepositoryCosmosDb : IFineRepository
 
     public async Task<Fine[]> GetByUserId(int userId, bool includeArchived = false)
     {
-        await EnsureEmbeddedFinesMigrated();
-
         var fines = await CosmosDbContext.ReadAllAsync<Fine>(_cosmos.Fines);
         return fines
             .Where(f => f.UserId == userId)
@@ -47,8 +41,6 @@ public class FineRepositoryCosmosDb : IFineRepository
 
     public async Task AddFine(Fine fine)
     {
-        await EnsureEmbeddedFinesMigrated();
-
         var user = await CosmosDbContext.ReadByDocumentIdAsync<ApplicationUser>(_cosmos.Users, fine.UserId.ToString());
 
         if (user == null)
@@ -71,8 +63,6 @@ public class FineRepositoryCosmosDb : IFineRepository
 
     public async Task Update(Fine fine)
     {
-        await EnsureEmbeddedFinesMigrated();
-
         var existing = await CosmosDbContext.ReadByDocumentIdAsync<Fine>(_cosmos.Fines, FineDocumentId(fine.UserId, fine.Id));
 
         if (existing is null)
@@ -96,8 +86,6 @@ public class FineRepositoryCosmosDb : IFineRepository
 
     public async Task Delete(int userId, int id)
     {
-        await EnsureEmbeddedFinesMigrated();
-
         var existing = await CosmosDbContext.ReadByDocumentIdAsync<Fine>(_cosmos.Fines, FineDocumentId(userId, id));
         if (existing is null)
             _logger.LogWarning("Fine {FineId} was not deleted because it was not found for user {UserId}.", id, userId);
@@ -117,8 +105,6 @@ public class FineRepositoryCosmosDb : IFineRepository
         bool? isPaid = null,
         bool? isArchived = null)
     {
-        await EnsureEmbeddedFinesMigrated();
-
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 5;
 
@@ -171,45 +157,6 @@ public class FineRepositoryCosmosDb : IFineRepository
             .ToList();
 
         return new PagedResult<Fine>(items, filtered.Count, page, pageSize);
-    }
-
-    private async Task EnsureEmbeddedFinesMigrated()
-    {
-        if (_embeddedFinesMigrated)
-            return;
-
-        await _migrationLock.WaitAsync();
-        try
-        {
-            if (_embeddedFinesMigrated)
-                return;
-
-            var users = await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users);
-            var migratedCount = 0;
-            foreach (var user in users.Where(user => user.Fines.Count > 0))
-            {
-                foreach (var fine in user.Fines)
-                {
-                    fine.UserId = fine.UserId > 0 ? fine.UserId : user.Id;
-                    fine.PaidAt = fine.IsPaid ? fine.PaidAt : null;
-                    fine.ArchivedAt = fine.IsArchived ? fine.ArchivedAt : null;
-                    await CosmosDbContext.UpsertAsync(_cosmos.Fines, FineDocumentId(fine), fine);
-                    migratedCount++;
-                }
-
-                user.Fines.Clear();
-                await CosmosDbContext.UpsertAsync(_cosmos.Users, user.Id.ToString(), user);
-            }
-
-            if (migratedCount > 0)
-                _logger.LogInformation("Migrated {FineCount} embedded fines to the fines container.", migratedCount);
-
-            _embeddedFinesMigrated = true;
-        }
-        finally
-        {
-            _migrationLock.Release();
-        }
     }
 
     private static string FineDocumentId(Fine fine)
