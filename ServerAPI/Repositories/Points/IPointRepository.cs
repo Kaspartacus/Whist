@@ -26,12 +26,6 @@ public interface IPointRepository
     Task Delete(int id);
 
     /// <summary>
-    /// Finder næste sekventielle id (1,2,3,...).
-    /// NOTE: Dette matcher din nuværende løsning (sortér på Id, tag største, +1).
-    /// </summary>
-    Task<int> GetNextId();
-
-    /// <summary>
     /// Sletter alle points (nulstil).
     /// </summary>
     Task DeleteAll();

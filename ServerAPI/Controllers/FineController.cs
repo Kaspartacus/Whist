@@ -35,9 +35,9 @@ public class FineController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpGet]
-    public ActionResult<Fine[]> GetAll()
+    public async Task<ActionResult<Fine[]>> GetAll()
     {
-        return _fineRepository.GetAll();
+        return await _fineRepository.GetAll();
     }
 
     /// <summary>
@@ -45,9 +45,9 @@ public class FineController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpGet("user/{userId}")]
-    public ActionResult<Fine[]> GetByUserId(int userId)
+    public async Task<ActionResult<Fine[]>> GetByUserId(int userId)
     {
-        return _fineRepository.GetByUserId(userId);
+        return await _fineRepository.GetByUserId(userId);
     }
 
     /// <summary>
@@ -56,7 +56,7 @@ public class FineController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpGet("paged")]
-    public ActionResult<PagedResult<Fine>> GetPaged(
+    public async Task<ActionResult<PagedResult<Fine>>> GetPaged(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
         [FromQuery] int? userId = null,
@@ -70,7 +70,7 @@ public class FineController : ControllerBase
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        var result = _fineRepository.GetPaged(page, pageSize, userId, searchTerm, fromDate, toDate, minAmount, maxAmount, isPaid);
+        var result = await _fineRepository.GetPaged(page, pageSize, userId, searchTerm, fromDate, toDate, minAmount, maxAmount, isPaid);
         return Ok(result);
     }
 
@@ -83,7 +83,7 @@ public class FineController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize]
-    public IActionResult Add(SaveFineRequest request)
+    public async Task<IActionResult> Add(SaveFineRequest request)
     {
         if (request.UserId <= 0)
             return BadRequest(new { message = "Bruger er påkrævet." });
@@ -96,7 +96,7 @@ public class FineController : ControllerBase
             IsPaid = request.IsPaid
         };
 
-        _fineRepository.AddFine(fine);
+        await _fineRepository.AddFine(fine);
         _logger.LogInformation(
             "Fine {FineId} was created for user {TargetUserId} by user {ActorUserId}. Amount: {Amount}.",
             fine.Id,
@@ -111,7 +111,7 @@ public class FineController : ControllerBase
     /// </summary>
     [HttpPut]
     [Authorize]
-    public IActionResult Update(SaveFineRequest request)
+    public async Task<IActionResult> Update(SaveFineRequest request)
     {
         if (request.UserId <= 0)
             return BadRequest(new { message = "Bruger er påkrævet." });
@@ -132,7 +132,7 @@ public class FineController : ControllerBase
             IsPaid = request.IsPaid
         };
 
-        _fineRepository.Update(fine);
+        await _fineRepository.Update(fine);
         _logger.LogInformation(
             "Fine {FineId} for user {TargetUserId} was updated by user {ActorUserId}. Paid: {IsPaid}. Amount: {Amount}.",
             fine.Id,
@@ -148,9 +148,9 @@ public class FineController : ControllerBase
     /// </summary>
     [HttpDelete("user/{userId}/{id}")]
     [Authorize]
-    public IActionResult Delete(int userId, int id)
+    public async Task<IActionResult> Delete(int userId, int id)
     {
-        _fineRepository.Delete(userId, id);
+        await _fineRepository.Delete(userId, id);
         _logger.LogInformation(
             "Fine {FineId} for user {TargetUserId} was deleted by user {ActorUserId}.",
             id,

@@ -3,9 +3,10 @@ name: Warm event day container
 on:
   schedule:
     # GitHub cron uses UTC. These two start slots cover 17:55 in Denmark
-    # across winter/summer time; the script below only acts when local hour is 17.
+    # across winter/summer time; the script below skips the early DST mismatch.
     - cron: "55 15,16 * * *"
-    # These two stop slots cover 03:05 in Denmark across winter/summer time.
+    # These two stop slots cover 03:05 in Denmark across winter/summer time;
+    # the script below skips the early DST mismatch but allows delayed GitHub runs.
     - cron: "5 1,2 * * *"
   workflow_dispatch:
     inputs:
@@ -43,10 +44,18 @@ jobs:
           if [ "${EVENT_NAME}" = "schedule" ]; then
             case "${EVENT_SCHEDULE}" in
               "55 15,16 * * *")
-                action="warm"
+                if [ "${local_hour}" -ge 17 ] && [ "${local_hour}" -le 23 ]; then
+                  action="warm"
+                else
+                  action="skip"
+                fi
                 ;;
               "5 1,2 * * *")
-                action="cool"
+                if [ "${local_hour}" -ge 3 ] && [ "${local_hour}" -le 12 ]; then
+                  action="cool"
+                else
+                  action="skip"
+                fi
                 ;;
               *)
                 action="skip"

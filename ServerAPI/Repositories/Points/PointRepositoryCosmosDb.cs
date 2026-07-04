@@ -24,7 +24,9 @@ public class PointRepositoryCosmosDb : IPointRepository
 
     public async Task Add(PointEntry point)
     {
-        point.Id = await GetNextId();
+        var points = await GetAll();
+        var minimumNextPointId = points.Any() ? points.Max(p => p.Id) + 1 : 1;
+        point.Id = await _cosmos.GetNextIdAtLeastAsync("points", minimumNextPointId);
         await CosmosDbContext.UpsertAsync(_cosmos.Points, point.Id.ToString(), point);
     }
 
@@ -47,9 +49,4 @@ public class PointRepositoryCosmosDb : IPointRepository
             await CosmosDbContext.DeleteAsync(_cosmos.Points, point.Id.ToString());
     }
 
-    public async Task<int> GetNextId()
-    {
-        var points = await GetAll();
-        return points.Any() ? points.Max(p => p.Id) + 1 : 1;
-    }
 }
