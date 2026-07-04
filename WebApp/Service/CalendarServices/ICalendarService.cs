@@ -21,7 +21,7 @@ public interface ICalendarService
     /// Gemmer et kalender-event (opret/ret).
     /// Backend håndterer selv om det er add eller update.
     /// </summary>
-    Task Save(Calendar calendar);
+    Task<Calendar> Save(Calendar calendar);
 
     /// <summary>
     /// Sletter et kalender-event ud fra id.
