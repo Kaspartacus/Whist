@@ -55,7 +55,7 @@ public class FineRepositoryCosmosDb : IFineRepository
         fine.PaidAt = fine.IsPaid ? DateTime.UtcNow : null;
         fine.IsArchived = false;
         fine.ArchivedAt = null;
-        ApplyArchiveRule(fine);
+        FineArchivePolicy.Apply(fine, DateTime.UtcNow);
 
         TextAutoReplace.Apply(fine, _logger);
 
@@ -76,7 +76,7 @@ public class FineRepositoryCosmosDb : IFineRepository
         fine.PaidAt = fine.IsPaid
             ? existing.PaidAt ?? DateTime.UtcNow
             : null;
-        ApplyArchiveRule(fine);
+        FineArchivePolicy.Apply(fine, DateTime.UtcNow);
 
         TextAutoReplace.Apply(fine, _logger);
 
@@ -167,7 +167,8 @@ public class FineRepositoryCosmosDb : IFineRepository
     private async Task<List<Fine>> ReadFinesWithArchiveStateAsync()
     {
         var fines = await CosmosDbContext.ReadAllAsync<Fine>(_cosmos.Fines);
-        var changedFines = fines.Where(ApplyArchiveRule).ToList();
+        var now = DateTime.UtcNow;
+        var changedFines = fines.Where(fine => FineArchivePolicy.Apply(fine, now)).ToList();
 
         foreach (var fine in changedFines)
             await CosmosDbContext.UpsertAsync(_cosmos.Fines, FineDocumentId(fine), fine);
@@ -176,27 +177,5 @@ public class FineRepositoryCosmosDb : IFineRepository
             _logger.LogInformation("Updated archive state for {FineCount} fines.", changedFines.Count);
 
         return fines;
-    }
-
-    private static bool ApplyArchiveRule(Fine fine)
-    {
-        var originalIsArchived = fine.IsArchived;
-        var originalArchivedAt = fine.ArchivedAt;
-
-        if (!fine.IsPaid || fine.PaidAt is null)
-        {
-            fine.IsArchived = false;
-            fine.ArchivedAt = null;
-        }
-        else
-        {
-            var archiveDate = fine.PaidAt.Value.ToUniversalTime().AddYears(1);
-            var shouldArchive = DateTime.UtcNow >= archiveDate;
-
-            fine.IsArchived = shouldArchive;
-            fine.ArchivedAt = shouldArchive ? archiveDate : null;
-        }
-
-        return fine.IsArchived != originalIsArchived || fine.ArchivedAt != originalArchivedAt;
     }
 }
