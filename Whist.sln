@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core", "Core\Core.csproj", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServerAPI", "ServerAPI\ServerAPI.csproj", "{CC9DFF05-83C9-450E-9778-404BAD595D64}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Whist.Tests", "Whist.Tests\Whist.Tests.csproj", "{29748826-6549-43A9-808E-6F9A30D8457A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{CC9DFF05-83C9-450E-9778-404BAD595D64}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CC9DFF05-83C9-450E-9778-404BAD595D64}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CC9DFF05-83C9-450E-9778-404BAD595D64}.Release|Any CPU.Build.0 = Release|Any CPU
+		{29748826-6549-43A9-808E-6F9A30D8457A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{29748826-6549-43A9-808E-6F9A30D8457A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{29748826-6549-43A9-808E-6F9A30D8457A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{29748826-6549-43A9-808E-6F9A30D8457A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
