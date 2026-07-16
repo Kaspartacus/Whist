@@ -25,8 +25,6 @@ public sealed class CosmosDbContext
         if (string.IsNullOrWhiteSpace(databaseName))
             throw new InvalidOperationException("Database:Name is required.");
 
-        var sharedThroughput = GetSharedThroughput(configuration);
-
         var client = new CosmosClient(connectionString, new CosmosClientOptions
         {
             Serializer = new SystemTextJsonCosmosSerializer(),
@@ -34,11 +32,7 @@ public sealed class CosmosDbContext
             RequestTimeout = TimeSpan.FromSeconds(15)
         });
 
-        var database = client
-            .CreateDatabaseIfNotExistsAsync(databaseName, sharedThroughput)
-            .GetAwaiter()
-            .GetResult()
-            .Database;
+        var database = CreateDatabase(client, databaseName, configuration);
 
         Users = CreateContainer(database, GetRequiredContainerName(configuration, "Users"));
         Roles = CreateContainer(database, GetRequiredContainerName(configuration, "Roles"));
@@ -170,6 +164,31 @@ public sealed class CosmosDbContext
             .GetResult()
             .Container;
     }
+
+    private static Database CreateDatabase(CosmosClient client, string databaseName, IConfiguration configuration)
+    {
+        if (IsServerless(configuration))
+        {
+            return client
+                .CreateDatabaseIfNotExistsAsync(databaseName)
+                .GetAwaiter()
+                .GetResult()
+                .Database;
+        }
+
+        var sharedThroughput = GetSharedThroughput(configuration);
+        return client
+            .CreateDatabaseIfNotExistsAsync(databaseName, sharedThroughput)
+            .GetAwaiter()
+            .GetResult()
+            .Database;
+    }
+
+    private static bool IsServerless(IConfiguration configuration)
+        => string.Equals(
+            configuration["Database:ThroughputMode"],
+            "Serverless",
+            StringComparison.OrdinalIgnoreCase);
 
     private static int GetSharedThroughput(IConfiguration configuration)
     {

@@ -11,6 +11,7 @@ public sealed class IdentityDataInitializer
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly CosmosDbContext _cosmos;
     private readonly IConfiguration _configuration;
+    private readonly IHostEnvironment _environment;
     private readonly ILogger<IdentityDataInitializer> _logger;
 
     public IdentityDataInitializer(
@@ -18,12 +19,14 @@ public sealed class IdentityDataInitializer
         UserManager<ApplicationUser> userManager,
         CosmosDbContext cosmos,
         IConfiguration configuration,
+        IHostEnvironment environment,
         ILogger<IdentityDataInitializer> logger)
     {
         _roleManager = roleManager;
         _userManager = userManager;
         _cosmos = cosmos;
         _configuration = configuration;
+        _environment = environment;
         _logger = logger;
     }
 
@@ -41,6 +44,12 @@ public sealed class IdentityDataInitializer
         }
 
         var users = await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users, cancellationToken);
+        if (users.Count == 0)
+        {
+            await SeedDevelopmentAdminAsync(cancellationToken);
+            users = await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users, cancellationToken);
+        }
+
         foreach (var user in users)
         {
             var changed = false;
@@ -109,6 +118,48 @@ public sealed class IdentityDataInitializer
                 _logger.LogInformation("Migrated authentication data for user {UserId}.", user.Id);
             }
         }
+    }
+
+    private async Task SeedDevelopmentAdminAsync(CancellationToken cancellationToken)
+    {
+        if (!_environment.IsDevelopment())
+            return;
+
+        var email = _configuration["DevelopmentSeed:AdminEmail"]?.Trim();
+        var password = _configuration["DevelopmentSeed:AdminPassword"];
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+        {
+            _logger.LogInformation("Development admin seed skipped because DevelopmentSeed admin credentials are not configured.");
+            return;
+        }
+
+        var user = new ApplicationUser
+        {
+            Id = 1,
+            UserName = email,
+            Email = email,
+            EmailConfirmed = true,
+            LockoutEnabled = true,
+            SecurityStamp = Guid.NewGuid().ToString(),
+            ConcurrencyStamp = Guid.NewGuid().ToString(),
+            Name = "Development Admin",
+            NickName = "Dev Admin",
+            Address = "Development",
+            Description = "Development seed user",
+            Roles = ["Member", "Admin"]
+        };
+
+        var result = await _userManager.CreateAsync(user, password);
+        EnsureSuccess(result, "seed development admin user");
+
+        foreach (var roleName in user.Roles)
+        {
+            result = await _userManager.AddToRoleAsync(user, roleName);
+            EnsureSuccess(result, $"assign role '{roleName}' to development admin user");
+        }
+
+        await _cosmos.GetNextIdAtLeastAsync("users", 2, cancellationToken);
+        _logger.LogInformation("Seeded development admin user {Email}.", email);
     }
 
     private HashSet<string> GetConfiguredAdminEmails()
