@@ -50,3 +50,51 @@ Projektet er forberedt til en enkel Azure deployment med:
 
 Konfiguration og secrets skal håndteres via miljøvariabler og Azure services, ikke hardcodes i source code.
 
+## Lokal development
+
+Lokal development koerer WebApp og ServerAPI paa maskinen, mens data og uploads peger paa separate development-ressourcer i Azure. Production-data maa ikke bruges til lokal test.
+
+Anbefalet development setup:
+
+- Resource group: `rg-whist-dev`
+- Cosmos DB for NoSQL: serverless development account
+- Cosmos database: `whist-dev`
+- Blob Storage container: `images-dev`
+- WebApp development API URL: `http://localhost:5176/`
+
+ServerAPI bruger `dotnet user-secrets` til lokale secrets. Secrets ligger udenfor repoet og maa ikke skrives i `appsettings*.json`.
+
+Paakraevede lokale user-secrets for `ServerAPI`:
+
+```text
+ConnectionStrings:Database
+Database:Name
+Database:ThroughputMode
+BlobStorage:ConnectionString
+BlobStorage:ContainerName
+BlobStorage:PublicBaseUrl
+Jwt:Issuer
+Jwt:Audience
+Jwt:Key
+Authorization:AdminEmails:0
+Smtp:Host
+Smtp:Port
+Smtp:User
+Smtp:Password
+Smtp:From
+DevelopmentSeed:AdminEmail
+DevelopmentSeed:AdminPassword
+```
+
+`Database:ThroughputMode` skal saettes til `Serverless`, naar den lokale API bruger Cosmos DB serverless. Uden denne vaerdi bruger API'en shared throughput, som production/free tier kan bruge.
+
+Ved foerste lokale startup opretter API'en en development admin-bruger, hvis miljoeet er `Development`, `users` containeren er tom, og `DevelopmentSeed:AdminEmail` samt `DevelopmentSeed:AdminPassword` er sat.
+
+Start lokalt:
+
+```bash
+dotnet run --project ServerAPI --launch-profile http
+dotnet run --project WebApp --launch-profile http
+```
+
+Frontend koerer herefter paa `http://localhost:5102`, og backend koerer paa `http://localhost:5176`.
