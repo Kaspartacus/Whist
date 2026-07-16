@@ -144,6 +144,13 @@ public sealed class AuthController : ControllerBase
                 user.Id,
                 user.Email);
         }
+        else
+        {
+            _logger.LogWarning(
+                "Logout could not update security stamp for user {UserId} ({Email}).",
+                user.Id,
+                user.Email);
+        }
 
         return result.Succeeded
             ? NoContent()
@@ -174,7 +181,13 @@ public sealed class AuthController : ControllerBase
 
         result = await _userManager.UpdateSecurityStampAsync(user);
         if (!result.Succeeded)
+        {
+            _logger.LogWarning(
+                "Password change could not update security stamp for user {UserId} ({Email}).",
+                user.Id,
+                user.Email);
             return ValidationProblem(ToProblemDetails(result));
+        }
 
         await _refreshTokenStore.RevokeAllForUserAsync(user.Id);
         var roles = await _userManager.GetRolesAsync(user);

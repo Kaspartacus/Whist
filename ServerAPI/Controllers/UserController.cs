@@ -88,7 +88,14 @@ public sealed class UserController : ControllerBase
 
         result = await _userManager.AddToRoleAsync(user, "Member");
         if (!result.Succeeded)
+        {
+            _logger.LogWarning(
+                "User role assignment failed after creating user {CreatedUserId} ({CreatedEmail}). Actor user: {ActorUserId}.",
+                user.Id,
+                user.Email,
+                GetCurrentUserId());
             return ValidationProblem(ToProblemDetails(result));
+        }
 
         _logger.LogInformation(
             "User {CreatedUserId} ({CreatedEmail}) was created by user {ActorUserId}.",
@@ -114,7 +121,13 @@ public sealed class UserController : ControllerBase
             return NotFound();
 
         if (!CanManageUser(id))
+        {
+            _logger.LogWarning(
+                "User update forbidden. Actor user: {ActorUserId}. Target user: {TargetUserId}.",
+                GetCurrentUserId(),
+                id);
             return Forbid();
+        }
 
         var oldImageUrl = user.ImageUrl;
 
@@ -169,6 +182,13 @@ public sealed class UserController : ControllerBase
         result = await _userManager.UpdateSecurityStampAsync(user);
         if (result.Succeeded)
             await _refreshTokenStore.RevokeAllForUserAsync(user.Id);
+        else
+        {
+            _logger.LogWarning(
+                "Admin password reset could not update security stamp. Admin user: {ActorUserId}. Target user: {TargetUserId}.",
+                GetCurrentUserId(),
+                id);
+        }
 
         if (result.Succeeded)
         {
@@ -193,13 +213,25 @@ public sealed class UserController : ControllerBase
             return NotFound();
 
         if (!CanManageUser(id))
+        {
+            _logger.LogWarning(
+                "User delete forbidden. Actor user: {ActorUserId}. Target user: {TargetUserId}.",
+                GetCurrentUserId(),
+                id);
             return Forbid();
+        }
 
         if (await _userManager.IsInRoleAsync(user, "Admin"))
         {
             var admins = await _userManager.GetUsersInRoleAsync("Admin");
             if (admins.Count <= 1)
+            {
+                _logger.LogWarning(
+                    "Last admin delete attempt blocked. Actor user: {ActorUserId}. Target user: {TargetUserId}.",
+                    GetCurrentUserId(),
+                    id);
                 return BadRequest(new { message = "Den sidste admin-bruger kan ikke slettes." });
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(user.ImageUrl))
@@ -216,9 +248,16 @@ public sealed class UserController : ControllerBase
                 GetCurrentUserId());
         }
 
-        return result.Succeeded
-            ? NoContent()
-            : ValidationProblem(ToProblemDetails(result));
+        if (!result.Succeeded)
+        {
+            _logger.LogWarning(
+                "User delete failed. Actor user: {ActorUserId}. Target user: {TargetUserId}.",
+                GetCurrentUserId(),
+                id);
+            return ValidationProblem(ToProblemDetails(result));
+        }
+
+        return NoContent();
     }
 
     private static void ApplyProfile(SaveUserRequest request, ApplicationUser user)

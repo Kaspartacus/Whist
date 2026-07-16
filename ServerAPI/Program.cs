@@ -306,12 +306,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Static files for any bundled backend assets. User-uploaded images live in Azure Blob Storage.
-app.UseStaticFiles();
-
-// Redirect HTTP -> HTTPS
-app.UseHttpsRedirection();
-
 // CORS (skal ligge før MapControllers så den gælder for API endpoints)
 app.UseCors("FrontendOnly");
 

@@ -150,7 +150,14 @@ public class HighlightController : ControllerBase
             return NotFound();
 
         if (existing.IsPrivate && !User.IsInRole("Admin") && existing.UserId != GetCurrentUserId())
+        {
+            _logger.LogWarning(
+                "Private highlight update forbidden. Highlight: {HighlightId}. Actor user: {ActorUserId}. Owner user: {OwnerUserId}.",
+                id,
+                GetCurrentUserId(),
+                existing.UserId);
             return Forbid();
+        }
 
         var highlight = ToHighlight(request);
         highlight.Id = id;
@@ -186,7 +193,14 @@ public class HighlightController : ControllerBase
             return NotFound();
 
         if (highlight.IsPrivate && !User.IsInRole("Admin") && highlight.UserId != GetCurrentUserId())
+        {
+            _logger.LogWarning(
+                "Private highlight delete forbidden. Highlight: {HighlightId}. Actor user: {ActorUserId}. Owner user: {OwnerUserId}.",
+                id,
+                GetCurrentUserId(),
+                highlight.UserId);
             return Forbid();
+        }
 
         var ownerUserId = highlight.UserId;
 
