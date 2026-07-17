@@ -287,10 +287,6 @@
     text-align: right;
 }
 
-.fine-table td:last-child {
-    white-space: nowrap;
-}
-
 .icon-button {
     background: none;
     border: none;
