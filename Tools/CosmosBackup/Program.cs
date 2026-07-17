@@ -47,6 +47,11 @@ await UploadJsonAsync(
     manifest,
     "application/json");
 
+if (options.Uploads is not null)
+    await BackupUploadsAsync(options.Uploads, backupContainer, backupPrefix);
+else
+    Console.WriteLine("Upload blob backup skipped because upload storage configuration is not set.");
+
 Console.WriteLine($"Backup completed successfully in {(completedAt - startedAt).TotalSeconds:N1} seconds.");
 
 static async Task<ContainerBackupResult> BackupContainerAsync(
@@ -139,13 +144,67 @@ static async Task UploadJsonAsync<T>(
     });
 }
 
+static async Task BackupUploadsAsync(
+    UploadBackupOptions options,
+    BlobContainerClient backupContainer,
+    string backupPrefix)
+{
+    var sourceContainer = new BlobContainerClient(options.ConnectionString, options.ContainerName);
+    var destinationPrefix = $"{options.BackupPrefix.Trim('/')}/{backupPrefix}";
+
+    Console.WriteLine($"Starting upload blob backup from container '{options.ContainerName}'.");
+    Console.WriteLine($"Upload backup destination prefix: '{destinationPrefix}'.");
+
+    var copied = 0;
+    long copiedBytes = 0;
+
+    await foreach (var blobItem in sourceContainer.GetBlobsAsync())
+    {
+        var sourceBlob = sourceContainer.GetBlobClient(blobItem.Name);
+        var destinationBlobName = $"{destinationPrefix}/{blobItem.Name}";
+        var destinationBlob = backupContainer.GetBlobClient(destinationBlobName);
+        var properties = await sourceBlob.GetPropertiesAsync();
+
+        await using var content = await sourceBlob.OpenReadAsync();
+        await destinationBlob.UploadAsync(content, new BlobUploadOptions
+        {
+            HttpHeaders = new BlobHttpHeaders
+            {
+                ContentType = properties.Value.ContentType,
+                CacheControl = properties.Value.CacheControl,
+                ContentDisposition = properties.Value.ContentDisposition,
+                ContentEncoding = properties.Value.ContentEncoding,
+                ContentLanguage = properties.Value.ContentLanguage
+            }
+        });
+
+        copied++;
+        copiedBytes += blobItem.Properties.ContentLength ?? 0;
+    }
+
+    var manifest = new UploadBackupManifest(
+        SourceContainerName: options.ContainerName,
+        BackupPrefix: destinationPrefix,
+        BlobCount: copied,
+        TotalSourceBytes: copiedBytes);
+
+    await UploadJsonAsync(
+        backupContainer,
+        $"{destinationPrefix}/manifest.json",
+        manifest,
+        "application/json");
+
+    Console.WriteLine($"Upload blob backup completed: {copied} blobs, {copiedBytes} source bytes.");
+}
+
 internal sealed record BackupOptions(
     string CosmosConnectionString,
     string CosmosDatabaseName,
     string BackupStorageConnectionString,
     string BackupContainerName,
     string BackupPrefix,
-    IReadOnlyList<string> ContainerNames)
+    IReadOnlyList<string> ContainerNames,
+    UploadBackupOptions? Uploads)
 {
     private static readonly string[] DefaultContainerNames =
     [
@@ -168,7 +227,8 @@ internal sealed record BackupOptions(
             BackupStorageConnectionString: Required("BACKUP_STORAGE_CONNECTION_STRING"),
             BackupContainerName: Required("BACKUP_CONTAINER_NAME"),
             BackupPrefix: Environment.GetEnvironmentVariable("BACKUP_PREFIX") ?? "cosmos-prod",
-            ContainerNames: containerNames);
+            ContainerNames: containerNames,
+            Uploads: UploadBackupOptions.FromEnvironment());
     }
 
     private static IReadOnlyList<string> ReadContainerNames()
@@ -204,6 +264,28 @@ internal sealed record BackupOptions(
     }
 }
 
+internal sealed record UploadBackupOptions(
+    string ConnectionString,
+    string ContainerName,
+    string BackupPrefix)
+{
+    public static UploadBackupOptions? FromEnvironment()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("UPLOAD_STORAGE_CONNECTION_STRING");
+        var containerName = Environment.GetEnvironmentVariable("UPLOAD_CONTAINER_NAME");
+        if (string.IsNullOrWhiteSpace(connectionString) && string.IsNullOrWhiteSpace(containerName))
+            return null;
+
+        if (string.IsNullOrWhiteSpace(connectionString) || string.IsNullOrWhiteSpace(containerName))
+            throw new InvalidOperationException("UPLOAD_STORAGE_CONNECTION_STRING and UPLOAD_CONTAINER_NAME must both be set to back up upload blobs.");
+
+        return new UploadBackupOptions(
+            ConnectionString: connectionString,
+            ContainerName: containerName,
+            BackupPrefix: Environment.GetEnvironmentVariable("UPLOAD_BACKUP_PREFIX") ?? "uploads");
+    }
+}
+
 internal sealed record BackupManifest(
     DateTimeOffset StartedAtUtc,
     DateTimeOffset CompletedAtUtc,
@@ -216,3 +298,9 @@ internal sealed record ContainerBackupResult(
     string BlobName,
     int DocumentCount,
     long CompressedBytes);
+
+internal sealed record UploadBackupManifest(
+    string SourceContainerName,
+    string BackupPrefix,
+    int BlobCount,
+    long TotalSourceBytes);

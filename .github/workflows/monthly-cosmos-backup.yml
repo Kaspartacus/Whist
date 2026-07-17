@@ -1,4 +1,4 @@
-name: Monthly Cosmos backup
+name: Monthly production backup
 
 on:
   schedule:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   backup:
-    name: Export production Cosmos DB
+    name: Export production data
     runs-on: ubuntu-latest
 
     env:
@@ -27,6 +27,9 @@ jobs:
       BACKUP_PREFIX: cosmos-prod
       BACKUP_CONTAINERS: ${{ vars.BACKUP_CONTAINERS }}
       BACKUP_INCLUDE_REFRESH_TOKENS: ${{ vars.BACKUP_INCLUDE_REFRESH_TOKENS }}
+      UPLOAD_STORAGE_CONNECTION_SECRET_NAME: ${{ vars.UPLOAD_STORAGE_CONNECTION_SECRET_NAME }}
+      UPLOAD_CONTAINER_NAME: ${{ vars.UPLOAD_CONTAINER_NAME }}
+      UPLOAD_BACKUP_PREFIX: uploads
 
     steps:
       - uses: actions/checkout@v4
@@ -90,6 +93,34 @@ jobs:
           echo "::add-mask::${backup_storage_connection_string}"
           echo "COSMOS_CONNECTION_STRING=${cosmos_connection_string}" >> "${GITHUB_ENV}"
           echo "BACKUP_STORAGE_CONNECTION_STRING=${backup_storage_connection_string}" >> "${GITHUB_ENV}"
+
+          if [ -n "${UPLOAD_STORAGE_CONNECTION_SECRET_NAME}" ] || [ -n "${UPLOAD_CONTAINER_NAME}" ]; then
+            if [ -z "${UPLOAD_STORAGE_CONNECTION_SECRET_NAME}" ]; then
+              echo "UPLOAD_STORAGE_CONNECTION_SECRET_NAME must be set when UPLOAD_CONTAINER_NAME is set."
+              exit 1
+            fi
+
+            if [ -z "${UPLOAD_CONTAINER_NAME}" ]; then
+              echo "UPLOAD_CONTAINER_NAME must be set when UPLOAD_STORAGE_CONNECTION_SECRET_NAME is set."
+              exit 1
+            fi
+
+            upload_storage_connection_string="$(az keyvault secret show \
+              --vault-name "${KEY_VAULT_NAME}" \
+              --name "${UPLOAD_STORAGE_CONNECTION_SECRET_NAME}" \
+              --query value \
+              --output tsv)"
+
+            if [ -z "${upload_storage_connection_string}" ]; then
+              echo "Upload storage connection string secret was empty."
+              exit 1
+            fi
+
+            echo "::add-mask::${upload_storage_connection_string}"
+            echo "UPLOAD_STORAGE_CONNECTION_STRING=${upload_storage_connection_string}" >> "${GITHUB_ENV}"
+            echo "UPLOAD_CONTAINER_NAME=${UPLOAD_CONTAINER_NAME}" >> "${GITHUB_ENV}"
+            echo "UPLOAD_BACKUP_PREFIX=${UPLOAD_BACKUP_PREFIX}" >> "${GITHUB_ENV}"
+          fi
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
