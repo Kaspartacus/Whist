@@ -61,7 +61,7 @@ public class RuleController : ControllerBase
             "Rule {RuleId} was created by user {ActorUserId}.",
             added.Id,
             GetCurrentUserId());
-        
+
         return CreatedAtAction(nameof(GetAll), new { id = added.Id }, added);
     }
 

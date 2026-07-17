@@ -50,7 +50,7 @@ public class UploadService : IUploadService
 
         if (!string.IsNullOrWhiteSpace(file.ContentType) && !AllowedContentTypes.Contains(file.ContentType))
             throw new InvalidOperationException("Filtypen er ikke tilladt. Kun jpg, jpeg, png og webp er tilladt.");
-        
+
         // Multipart content skal disponeres korrekt
         await using var stream = file.OpenReadStream(maxAllowedSize: MaxAllowedSizeBytes);
 

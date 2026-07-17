@@ -29,6 +29,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Whist.sln
+
+      - name: Build
+        run: dotnet build Whist.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Whist.sln --configuration Release --no-restore --no-build
+
       # Buildx is the recommended Docker builder for GitHub Actions.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

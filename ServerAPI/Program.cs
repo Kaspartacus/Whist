@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using ServerAPI.Auth;
 using ServerAPI.Configuration;
@@ -45,6 +46,7 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IRefreshTokenStore, CosmosRefreshTokenStore>();
 builder.Services.AddScoped<RefreshTokenService>();
 builder.Services.AddScoped<IReminderMailService, ReminderMailService>();
+builder.Services.AddSingleton<StartupHealthState>();
 
 builder.Services
     .AddOptions<BlobStorageOptions>()
@@ -91,6 +93,12 @@ builder.Services
     .Validate(options => !string.IsNullOrWhiteSpace(options.User), "Smtp:User is required.")
     .Validate(options => !string.IsNullOrWhiteSpace(options.Password), "Smtp:Password is required.")
     .Validate(options => options.Port is > 0 and <= 65535, "Smtp:Port must be between 1 and 65535.")
+    .ValidateOnStart();
+
+builder.Services
+    .AddOptions<ReminderOptions>()
+    .Bind(builder.Configuration.GetSection(ReminderOptions.SectionName))
+    .Validate(options => !string.IsNullOrWhiteSpace(options.RunSecret), "Reminders:RunSecret is required.")
     .ValidateOnStart();
 
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
@@ -269,6 +277,8 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+await InitializeApplicationAsync(app);
+
 // =========================================================
 // Middleware pipeline (rækkefølgen betyder noget)
 // =========================================================
@@ -330,45 +340,47 @@ app.UseAuthorization();
 
 
 // Map controllers (api/*)
-app.MapGet("/health", () => Results.Ok(new
-{
-    status = "Healthy",
-    timestamp = DateTimeOffset.UtcNow
-})).AllowAnonymous();
+app.MapGet("/health", (StartupHealthState health) => health.IsReady
+    ? Results.Ok(new
+    {
+        status = "Healthy",
+        timestamp = DateTimeOffset.UtcNow,
+        readyAtUtc = health.ReadyAtUtc
+    })
+    : Results.Json(new
+    {
+        status = "Unhealthy",
+        reason = "Startup validation has not completed.",
+        timestamp = DateTimeOffset.UtcNow
+    }, statusCode: StatusCodes.Status503ServiceUnavailable)).AllowAnonymous();
 
 app.MapControllers();
 
-app.Lifetime.ApplicationStarted.Register(() =>
+app.Run();
+
+static async Task InitializeApplicationAsync(WebApplication app)
 {
     var logger = app.Services
         .GetRequiredService<ILoggerFactory>()
         .CreateLogger("StartupInitialization");
 
-    _ = Task.Run(async () =>
-    {
-        try
-        {
-            logger.LogInformation("Starting background identity and database initialization.");
+    logger.LogInformation("Starting startup configuration, identity, and database validation.");
 
-            await using var scope = app.Services.CreateAsyncScope();
-            await scope.ServiceProvider
-                .GetRequiredService<IdentityDataInitializer>()
-                .InitializeAsync(app.Lifetime.ApplicationStopping);
+    await using var scope = app.Services.CreateAsyncScope();
+    var services = scope.ServiceProvider;
 
-            logger.LogInformation("Background identity and database initialization completed.");
-        }
-        catch (OperationCanceledException) when (app.Lifetime.ApplicationStopping.IsCancellationRequested)
-        {
-            logger.LogInformation("Background identity and database initialization was cancelled because the app is stopping.");
-        }
-        catch (Exception ex)
-        {
-            logger.LogCritical(ex, "Background identity and database initialization failed.");
-        }
-    }, app.Lifetime.ApplicationStopping);
-});
+    _ = services.GetRequiredService<IOptions<BlobStorageOptions>>().Value;
+    _ = services.GetRequiredService<IOptions<JwtOptions>>().Value;
+    _ = services.GetRequiredService<IOptions<SmtpOptions>>().Value;
+    _ = services.GetRequiredService<IOptions<ReminderOptions>>().Value;
 
-app.Run();
+    await services
+        .GetRequiredService<IdentityDataInitializer>()
+        .InitializeAsync(app.Lifetime.ApplicationStopping);
+
+    app.Services.GetRequiredService<StartupHealthState>().MarkReady();
+    logger.LogInformation("Startup configuration, identity, and database validation completed.");
+}
 
 static string GetClientIp(HttpContext context)
     => $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
@@ -389,4 +401,23 @@ public sealed class SmtpOptions
     public string User { get; set; } = "";
     public string Password { get; set; } = "";
     public string? From { get; set; }
+}
+
+public sealed class ReminderOptions
+{
+    public const string SectionName = "Reminders";
+
+    public string RunSecret { get; set; } = "";
+}
+
+public sealed class StartupHealthState
+{
+    public bool IsReady { get; private set; }
+    public DateTimeOffset? ReadyAtUtc { get; private set; }
+
+    public void MarkReady()
+    {
+        ReadyAtUtc = DateTimeOffset.UtcNow;
+        IsReady = true;
+    }
 }

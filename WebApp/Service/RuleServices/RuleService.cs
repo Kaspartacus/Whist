@@ -31,8 +31,8 @@ public class RuleService : IRuleService
     /// <inheritdoc />
     public async Task Add(Rule rule)
     {
-       var res = await _http.PostAsJsonAsync(BaseRoute, ToSaveRequest(rule));
-       await res.EnsureSuccessWithApiMessageAsync();
+        var res = await _http.PostAsJsonAsync(BaseRoute, ToSaveRequest(rule));
+        await res.EnsureSuccessWithApiMessageAsync();
     }
 
     /// <inheritdoc />
