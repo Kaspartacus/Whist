@@ -114,5 +114,7 @@ public sealed class HighlightControllerTests
 
         public Task<bool> TryDeleteImageAsync(string? imageUrl, CancellationToken cancellationToken = default)
             => Task.FromResult(true);
+
+        public bool IsAllowedImageUrl(string? imageUrl) => true;
     }
 }
