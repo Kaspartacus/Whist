@@ -8,6 +8,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServerAPI", "ServerAPI\Serv
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Whist.Tests", "Whist.Tests\Whist.Tests.csproj", "{29748826-6549-43A9-808E-6F9A30D8457A}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tools", "Tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CosmosBackup", "Tools\CosmosBackup\CosmosBackup.csproj", "{F9611769-7835-4703-9A91-20646D5093D1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +34,15 @@ Global
 		{29748826-6549-43A9-808E-6F9A30D8457A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{29748826-6549-43A9-808E-6F9A30D8457A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{29748826-6549-43A9-808E-6F9A30D8457A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F9611769-7835-4703-9A91-20646D5093D1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F9611769-7835-4703-9A91-20646D5093D1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F9611769-7835-4703-9A91-20646D5093D1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F9611769-7835-4703-9A91-20646D5093D1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{F9611769-7835-4703-9A91-20646D5093D1} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 EndGlobal

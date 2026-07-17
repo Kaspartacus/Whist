@@ -1,0 +1,103 @@
+name: Monthly Cosmos backup
+
+on:
+  schedule:
+    # Runs at 03:20 UTC on the first day of each month.
+    - cron: "20 3 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  backup:
+    name: Export production Cosmos DB
+    runs-on: ubuntu-latest
+
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+      COSMOS_CONNECTION_SECRET_NAME: ${{ vars.COSMOS_CONNECTION_SECRET_NAME }}
+      BACKUP_STORAGE_CONNECTION_SECRET_NAME: ${{ vars.BACKUP_STORAGE_CONNECTION_SECRET_NAME }}
+      COSMOS_DATABASE_NAME: ${{ vars.COSMOS_PROD_DATABASE_NAME }}
+      BACKUP_CONTAINER_NAME: ${{ vars.BACKUP_CONTAINER_NAME }}
+      BACKUP_PREFIX: cosmos-prod
+      BACKUP_CONTAINERS: ${{ vars.BACKUP_CONTAINERS }}
+      BACKUP_INCLUDE_REFRESH_TOKENS: ${{ vars.BACKUP_INCLUDE_REFRESH_TOKENS }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate configuration
+        run: |
+          set -euo pipefail
+
+          required_vars=(
+            AZURE_CLIENT_ID
+            AZURE_TENANT_ID
+            AZURE_SUBSCRIPTION_ID
+            KEY_VAULT_NAME
+            COSMOS_CONNECTION_SECRET_NAME
+            BACKUP_STORAGE_CONNECTION_SECRET_NAME
+            COSMOS_DATABASE_NAME
+            BACKUP_CONTAINER_NAME
+          )
+
+          for name in "${required_vars[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "Missing repository variable: ${name}"
+              exit 1
+            fi
+          done
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read backup secrets from Key Vault
+        run: |
+          set -euo pipefail
+
+          cosmos_connection_string="$(az keyvault secret show \
+            --vault-name "${KEY_VAULT_NAME}" \
+            --name "${COSMOS_CONNECTION_SECRET_NAME}" \
+            --query value \
+            --output tsv)"
+
+          backup_storage_connection_string="$(az keyvault secret show \
+            --vault-name "${KEY_VAULT_NAME}" \
+            --name "${BACKUP_STORAGE_CONNECTION_SECRET_NAME}" \
+            --query value \
+            --output tsv)"
+
+          if [ -z "${cosmos_connection_string}" ]; then
+            echo "Cosmos connection string secret was empty."
+            exit 1
+          fi
+
+          if [ -z "${backup_storage_connection_string}" ]; then
+            echo "Backup storage connection string secret was empty."
+            exit 1
+          fi
+
+          echo "::add-mask::${cosmos_connection_string}"
+          echo "::add-mask::${backup_storage_connection_string}"
+          echo "COSMOS_CONNECTION_STRING=${cosmos_connection_string}" >> "${GITHUB_ENV}"
+          echo "BACKUP_STORAGE_CONNECTION_STRING=${backup_storage_connection_string}" >> "${GITHUB_ENV}"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore backup tool
+        run: dotnet restore Tools/CosmosBackup/CosmosBackup.csproj
+
+      - name: Run backup
+        run: dotnet run --project Tools/CosmosBackup/CosmosBackup.csproj --configuration Release --no-restore
