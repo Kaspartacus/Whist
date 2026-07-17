@@ -9,7 +9,7 @@ public interface ICalendarRepository
 {
     /// <summary>Henter alle kalender-events.</summary>
     Task<List<Calendar>> GetAll();
-    
+
     // Henter et event ud fra dato.
     Task<Calendar?> GetByDate(DateTime date);
 

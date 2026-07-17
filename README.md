@@ -74,6 +74,7 @@ Smtp:Port
 Smtp:User
 Smtp:Password
 Smtp:From
+Reminders:RunSecret
 DevelopmentSeed:AdminEmail
 DevelopmentSeed:AdminPassword
 ```

@@ -21,11 +21,11 @@ public class UserService : IUserService
         _http = http;
     }
 
-    public async Task<User[]> GetAll() => await _http.GetFromJsonAsync<User[]>(BaseRoute) ?? Array.Empty<User>();
-    
+    public async Task<User[]> GetAll()
+        => await _http.GetFromJsonAsync<User[]>(BaseRoute) ?? Array.Empty<User>();
 
-    public async Task<User?> GetById(int id) => await _http.GetFromJsonAsync<User?>($"{BaseRoute}/{id}");
-    
+    public async Task<User?> GetById(int id)
+        => await _http.GetFromJsonAsync<User?>($"{BaseRoute}/{id}");
 
     public async Task AddUser(User user, string password)
     {

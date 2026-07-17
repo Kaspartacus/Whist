@@ -71,7 +71,9 @@ public class HighlightRepositoryCosmosDb : IHighlightRepository
 
     public async Task<Highlight> Add(Highlight highlight)
     {
-        highlight.Date = DateTime.Today;
+        if (highlight.Date == default)
+            highlight.Date = DateTime.Today;
+
         highlight.Id = await _cosmos.GetNextIdAsync("highlights");
 
         TextAutoReplace.Apply(highlight, _logger);
