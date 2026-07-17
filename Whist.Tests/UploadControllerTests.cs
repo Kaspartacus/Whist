@@ -21,7 +21,10 @@ public sealed class UploadControllerTests
             ContentType = "text/plain"
         };
 
-        var result = await controller.UploadImage(file, CancellationToken.None);
+        var result = await controller.UploadImage(new UploadController.UploadImageRequest
+        {
+            File = file
+        }, CancellationToken.None);
 
         Assert.IsType<BadRequestObjectResult>(result);
         Assert.False(storage.UploadCalled);
@@ -38,7 +41,10 @@ public sealed class UploadControllerTests
             ContentType = "image/jpeg"
         };
 
-        var result = await controller.UploadImage(file, CancellationToken.None);
+        var result = await controller.UploadImage(new UploadController.UploadImageRequest
+        {
+            File = file
+        }, CancellationToken.None);
 
         Assert.IsType<BadRequestObjectResult>(result);
         Assert.False(storage.UploadCalled);
@@ -81,5 +87,7 @@ public sealed class UploadControllerTests
 
         public Task<bool> TryDeleteImageAsync(string? imageUrl, CancellationToken cancellationToken = default)
             => Task.FromResult(true);
+
+        public bool IsAllowedImageUrl(string? imageUrl) => true;
     }
 }
