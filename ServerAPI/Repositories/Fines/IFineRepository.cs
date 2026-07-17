@@ -21,17 +21,17 @@ public interface IFineRepository
     /// <summary>
     /// Tilføjer en ny bøde til en bruger.
     /// </summary>
-    Task AddFine(Fine fine);
+    Task<bool> AddFine(Fine fine);
 
     /// <summary>
     /// Opdaterer en eksisterende bøde (fx markering som betalt).
     /// </summary>
-    Task Update(Fine fine);
+    Task<bool> Update(Fine fine);
 
     /// <summary>
     /// Sletter en bøde for en given bruger.
     /// </summary>
-    Task Delete(int userId, int id);
+    Task<bool> Delete(int userId, int id);
 
     /// <summary>
     /// Henter bøder pagineret. Kan filtrere på userId.

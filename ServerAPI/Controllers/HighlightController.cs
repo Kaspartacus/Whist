@@ -168,7 +168,9 @@ public class HighlightController : ControllerBase
         var highlight = ToHighlight(request);
         highlight.Id = id;
         highlight.UserId = existing.UserId;
-        await _repository.Update(highlight);
+        var updated = await _repository.Update(highlight);
+        if (!updated)
+            return NotFound();
 
         if (!string.IsNullOrWhiteSpace(existing.ImageUrl) &&
             !string.Equals(existing.ImageUrl, highlight.ImageUrl, StringComparison.Ordinal))
@@ -215,7 +217,10 @@ public class HighlightController : ControllerBase
         if (!string.IsNullOrEmpty(highlight.ImageUrl))
             await _imageStorage.TryDeleteImageAsync(highlight.ImageUrl, cancellationToken);
 
-        await _repository.Delete(id);
+        var deleted = await _repository.Delete(id);
+        if (!deleted)
+            return NotFound();
+
         _logger.LogInformation(
             "Highlight {HighlightId} was deleted by user {ActorUserId}. Owner user: {OwnerUserId}.",
             id,

@@ -54,7 +54,10 @@ public class CalendarController : ControllerBase
             Note = request.Note.Trim()
         };
 
-        await _repo.AddOrUpdate(calendar);
+        var saved = await _repo.AddOrUpdate(calendar);
+        if (!saved)
+            return NotFound(new { message = "Kalenderaftalen blev ikke fundet." });
+
         _logger.LogInformation(
             "Calendar event {CalendarId} was saved by user {ActorUserId}. Date: {EventDate:u}.",
             calendar.Id,
@@ -68,7 +71,10 @@ public class CalendarController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Delete(int id)
     {
-        await _repo.Delete(id);
+        var deleted = await _repo.Delete(id);
+        if (!deleted)
+            return NotFound(new { message = "Kalenderaftalen blev ikke fundet." });
+
         _logger.LogInformation(
             "Calendar event {CalendarId} was deleted by user {ActorUserId}.",
             id,

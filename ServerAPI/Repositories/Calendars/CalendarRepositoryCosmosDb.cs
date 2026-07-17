@@ -35,13 +35,19 @@ public class CalendarRepositoryCosmosDb : ICalendarRepository
         return calendarEvents.FirstOrDefault(x => x.Date == utcDateOnly);
     }
 
-    public async Task AddOrUpdate(Calendar calendarEvent)
+    public async Task<bool> AddOrUpdate(Calendar calendarEvent)
     {
         calendarEvent.Date = DateTime.SpecifyKind(calendarEvent.Date.Date, DateTimeKind.Utc);
 
         var existing = calendarEvent.Id > 0
             ? await GetById(calendarEvent.Id)
             : await GetByDate(calendarEvent.Date);
+
+        if (existing is null && calendarEvent.Id > 0)
+        {
+            _logger.LogWarning("Calendar event {CalendarId} was not updated because it was not found.", calendarEvent.Id);
+            return false;
+        }
 
         if (existing is null)
         {
@@ -57,18 +63,20 @@ public class CalendarRepositoryCosmosDb : ICalendarRepository
         TextAutoReplace.Apply(calendarEvent, _logger);
 
         await CosmosDbContext.UpsertAsync(_cosmos.Calendar, calendarEvent.Id.ToString(), calendarEvent);
+        return true;
     }
 
-    public async Task Delete(int id)
+    public async Task<bool> Delete(int id)
     {
         var existing = await CosmosDbContext.ReadByDocumentIdAsync<Calendar>(_cosmos.Calendar, id.ToString());
         if (existing is null)
         {
             _logger.LogWarning("Calendar event {CalendarId} was not deleted because it was not found.", id);
-            return;
+            return false;
         }
 
         await CosmosDbContext.DeleteAsync(_cosmos.Calendar, id.ToString());
+        return true;
     }
 
     public async Task<List<Calendar>> FindPendingReminders(int reminderDaysAhead)

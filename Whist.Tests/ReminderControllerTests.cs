@@ -103,9 +103,9 @@ public sealed class ReminderControllerTests
 
         public Task<List<Calendar>> GetAll() => Task.FromResult(_events);
         public Task<Calendar?> GetByDate(DateTime date) => Task.FromResult(_events.FirstOrDefault(x => x.Date.Date == date.Date));
-        public Task AddOrUpdate(Calendar evt) => throw new NotImplementedException();
+        public Task<bool> AddOrUpdate(Calendar evt) => throw new NotImplementedException();
         public Task<Calendar?> GetById(int id) => Task.FromResult(_events.FirstOrDefault(x => x.Id == id));
-        public Task Delete(int id) => throw new NotImplementedException();
+        public Task<bool> Delete(int id) => throw new NotImplementedException();
         public Task<List<Calendar>> FindPendingReminders(int reminderDaysAhead) => Task.FromResult(_events);
         public Task MarkReminderSent(int calendarId) => Task.CompletedTask;
         public Task MarkRemindersSent(IEnumerable<int> calendarIds) => Task.CompletedTask;

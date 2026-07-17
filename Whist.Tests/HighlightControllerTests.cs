@@ -120,16 +120,16 @@ public sealed class HighlightControllerTests
             return Task.FromResult(highlight);
         }
 
-        public Task Delete(int id)
+        public Task<bool> Delete(int id)
         {
             DeleteCalled = true;
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
 
-        public Task Update(Highlight highlight)
+        public Task<bool> Update(Highlight highlight)
         {
             UpdateCalled = true;
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
     }
 
