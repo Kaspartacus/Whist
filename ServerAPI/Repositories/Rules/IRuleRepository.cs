@@ -21,8 +21,8 @@ public interface IRuleRepository
     Task<Rule> Add(Rule rule);
 
     /// <summary>Opdaterer en eksisterende regel (samme Id).</summary>
-    Task Update(Rule rule);
+    Task<bool> Update(Rule rule);
 
     /// <summary>Sletter en regel ud fra id.</summary>
-    Task Delete(int id);
+    Task<bool> Delete(int id);
 }

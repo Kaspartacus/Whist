@@ -28,12 +28,12 @@ public interface IHighlightRepository
     /// <summary>
     /// Sletter et highlight ud fra id.
     /// </summary>
-    Task Delete(int id);
+    Task<bool> Delete(int id);
 
     /// <summary>
     /// Opdaterer et highlight.
     /// </summary>
-    Task Update(Highlight highlight);
+    Task<bool> Update(Highlight highlight);
 
     /// <summary>
     /// Henter highlights pagineret (server-side paging).

@@ -39,14 +39,14 @@ public class FineRepositoryCosmosDb : IFineRepository
             .ToArray();
     }
 
-    public async Task AddFine(Fine fine)
+    public async Task<bool> AddFine(Fine fine)
     {
         var user = await CosmosDbContext.ReadByDocumentIdAsync<ApplicationUser>(_cosmos.Users, fine.UserId.ToString());
 
         if (user == null)
         {
             _logger.LogWarning("Fine was not created because user {UserId} was not found.", fine.UserId);
-            return;
+            return false;
         }
 
         var userFines = await GetByUserId(fine.UserId, includeArchived: true);
@@ -60,16 +60,17 @@ public class FineRepositoryCosmosDb : IFineRepository
         TextAutoReplace.Apply(fine, _logger);
 
         await CosmosDbContext.UpsertAsync(_cosmos.Fines, FineDocumentId(fine), fine);
+        return true;
     }
 
-    public async Task Update(Fine fine)
+    public async Task<bool> Update(Fine fine)
     {
         var existing = await CosmosDbContext.ReadByDocumentIdAsync<Fine>(_cosmos.Fines, FineDocumentId(fine.UserId, fine.Id));
 
         if (existing is null)
         {
             _logger.LogWarning("Fine {FineId} was not updated because it was not found for user {UserId}.", fine.Id, fine.UserId);
-            return;
+            return false;
         }
 
         fine.Date = fine.Date == default ? existing.Date : fine.Date;
@@ -81,15 +82,20 @@ public class FineRepositoryCosmosDb : IFineRepository
         TextAutoReplace.Apply(fine, _logger);
 
         await CosmosDbContext.UpsertAsync(_cosmos.Fines, FineDocumentId(fine), fine);
+        return true;
     }
 
-    public async Task Delete(int userId, int id)
+    public async Task<bool> Delete(int userId, int id)
     {
         var existing = await CosmosDbContext.ReadByDocumentIdAsync<Fine>(_cosmos.Fines, FineDocumentId(userId, id));
         if (existing is null)
+        {
             _logger.LogWarning("Fine {FineId} was not deleted because it was not found for user {UserId}.", id, userId);
+            return false;
+        }
 
         await CosmosDbContext.DeleteAsync(_cosmos.Fines, FineDocumentId(userId, id));
+        return true;
     }
 
     public async Task<PagedResult<Fine>> GetPaged(

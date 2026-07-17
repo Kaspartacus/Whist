@@ -77,7 +77,10 @@ public class RuleController : ControllerBase
             return BadRequest(new { message = "Regeltekst mangler." });
 
         var rule = new Rule { Id = id, Text = request.Text.Trim() };
-        await _repo.Update(rule);
+        var updated = await _repo.Update(rule);
+        if (!updated)
+            return NotFound(new { message = "Reglen blev ikke fundet." });
+
         _logger.LogInformation(
             "Rule {RuleId} was updated by user {ActorUserId}.",
             id,
@@ -92,7 +95,10 @@ public class RuleController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Delete(int id)
     {
-        await _repo.Delete(id);
+        var deleted = await _repo.Delete(id);
+        if (!deleted)
+            return NotFound(new { message = "Reglen blev ikke fundet." });
+
         _logger.LogInformation(
             "Rule {RuleId} was deleted by user {ActorUserId}.",
             id,

@@ -98,7 +98,10 @@ public class FineController : ControllerBase
             PaidAt = request.IsPaid ? DateTime.UtcNow : null
         };
 
-        await _fineRepository.AddFine(fine);
+        var created = await _fineRepository.AddFine(fine);
+        if (!created)
+            return BadRequest(new { message = "Brugeren findes ikke." });
+
         _logger.LogInformation(
             "Fine {FineId} was created for user {TargetUserId} by user {ActorUserId}. Amount: {Amount}.",
             fine.Id,
@@ -135,7 +138,10 @@ public class FineController : ControllerBase
             PaidAt = request.PaidAt
         };
 
-        await _fineRepository.Update(fine);
+        var updated = await _fineRepository.Update(fine);
+        if (!updated)
+            return NotFound(new { message = "Bøden blev ikke fundet." });
+
         _logger.LogInformation(
             "Fine {FineId} for user {TargetUserId} was updated by user {ActorUserId}. Paid: {IsPaid}. Amount: {Amount}.",
             fine.Id,
@@ -153,7 +159,10 @@ public class FineController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Delete(int userId, int id)
     {
-        await _fineRepository.Delete(userId, id);
+        var deleted = await _fineRepository.Delete(userId, id);
+        if (!deleted)
+            return NotFound(new { message = "Bøden blev ikke fundet." });
+
         _logger.LogInformation(
             "Fine {FineId} for user {TargetUserId} was deleted by user {ActorUserId}.",
             id,

@@ -82,19 +82,20 @@ public class HighlightRepositoryCosmosDb : IHighlightRepository
         return highlight;
     }
 
-    public async Task Delete(int id)
+    public async Task<bool> Delete(int id)
     {
         var existing = await GetById(id);
         if (existing is null)
         {
             _logger.LogWarning("Highlight {HighlightId} was not deleted because it was not found.", id);
-            return;
+            return false;
         }
 
         await CosmosDbContext.DeleteAsync(_cosmos.Highlights, id.ToString());
+        return true;
     }
 
-    public async Task Update(Highlight highlight)
+    public async Task<bool> Update(Highlight highlight)
     {
         TextAutoReplace.Apply(highlight, _logger);
 
@@ -102,9 +103,10 @@ public class HighlightRepositoryCosmosDb : IHighlightRepository
         if (existing is null)
         {
             _logger.LogWarning("Highlight {HighlightId} was not updated because it was not found.", highlight.Id);
-            return;
+            return false;
         }
 
         await CosmosDbContext.UpsertAsync(_cosmos.Highlights, highlight.Id.ToString(), highlight);
+        return true;
     }
 }

@@ -36,7 +36,7 @@ public class RuleRepositoryCosmosDb : IRuleRepository
         return rule;
     }
 
-    public async Task Update(Rule rule)
+    public async Task<bool> Update(Rule rule)
     {
         TextAutoReplace.Apply(rule, _logger);
 
@@ -44,21 +44,23 @@ public class RuleRepositoryCosmosDb : IRuleRepository
         if (existing is null)
         {
             _logger.LogWarning("Rule {RuleId} was not updated because it was not found.", rule.Id);
-            return;
+            return false;
         }
 
         await CosmosDbContext.UpsertAsync(_cosmos.Rules, rule.Id.ToString(), rule);
+        return true;
     }
 
-    public async Task Delete(int id)
+    public async Task<bool> Delete(int id)
     {
         var existing = await GetById(id);
         if (existing is null)
         {
             _logger.LogWarning("Rule {RuleId} was not deleted because it was not found.", id);
-            return;
+            return false;
         }
 
         await CosmosDbContext.DeleteAsync(_cosmos.Rules, id.ToString());
+        return true;
     }
 }

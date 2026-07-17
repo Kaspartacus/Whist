@@ -17,13 +17,13 @@ public interface ICalendarRepository
     /// Opretter/retter event for en dato.
     /// Dato håndteres som "date-only".
     /// </summary>
-    Task AddOrUpdate(Calendar evt);
+    Task<bool> AddOrUpdate(Calendar evt);
 
     /// <summary>Henter et event ud fra id.</summary>
     Task<Calendar?> GetById(int id);
 
     /// <summary>Sletter et event ud fra id.</summary>
-    Task Delete(int id);
+    Task<bool> Delete(int id);
 
     /// <summary>
     /// Finder kommende events inden for reminder-vinduet (i lokal timezone),

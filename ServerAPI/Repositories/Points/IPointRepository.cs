@@ -18,12 +18,12 @@ public interface IPointRepository
     /// <summary>
     /// Opretter en ny point entry.
     /// </summary>
-    Task Add(PointEntry point);
+    Task<bool> Add(PointEntry point);
 
     /// <summary>
     /// Sletter en point entry ud fra id.
     /// </summary>
-    Task Delete(int id);
+    Task<bool> Delete(int id);
 
     /// <summary>
     /// Sletter alle points (nulstil).

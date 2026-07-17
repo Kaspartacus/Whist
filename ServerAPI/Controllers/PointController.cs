@@ -67,7 +67,10 @@ public class PointController : ControllerBase
             Date = request.Date
         };
 
-        await _repository.Add(point);
+        var created = await _repository.Add(point);
+        if (!created)
+            return BadRequest(new { message = "Spilleren findes ikke." });
+
         _logger.LogInformation(
             "Point entry {PointEntryId} was created for player {PlayerId} by user {ActorUserId}. Points: {Points}.",
             point.Id,
@@ -84,7 +87,10 @@ public class PointController : ControllerBase
     [Authorize]
     public async Task<ActionResult> Delete(int id)
     {
-        await _repository.Delete(id);
+        var deleted = await _repository.Delete(id);
+        if (!deleted)
+            return NotFound(new { message = "Point-rækken blev ikke fundet." });
+
         _logger.LogInformation(
             "Point entry {PointEntryId} was deleted by user {ActorUserId}.",
             id,
