@@ -57,6 +57,8 @@ uploads/cosmos-prod/yyyy-MM-dd/HHmmss-utc/{original-blob-name}
 uploads/cosmos-prod/yyyy-MM-dd/HHmmss-utc/manifest.json
 ```
 
+Hvis billeder skal gendannes, skal de kopieres tilbage til production upload-containeren med samme oprindelige blob-sti. Fjern kun backup-prefixet `uploads/cosmos-prod/yyyy-MM-dd/HHmmss-utc/`. Billeder skal ikke pakkes ud med `gunzip`.
+
 I GitHub workflowet skal upload-backup pege på Key Vault secret-navnet og upload-containeren via repository variables:
 
 ```text

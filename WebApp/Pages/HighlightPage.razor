@@ -1,4 +1,5 @@
 @page "/highlights"
+@implements IAsyncDisposable
 
 @using System.Globalization
 @using Core
@@ -8,6 +9,7 @@
 @inject Service.HighlightServices.IHighlightService HighlightService
 @inject Service.AuthServices.IAuthService AuthService
 @inject IUserService UserService
+@inject IJSRuntime JS
 
 <!--
     Highlights-side:
@@ -147,9 +149,9 @@
     private User? CurrentUser;
 
     private int CurrentPage = 1;
-    private const int PageSize = 6;
+    private int PageSize = 6;
     private int TotalCount = 0;
-    private int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
+    private int TotalPages => PageSize <= 0 ? 0 : (int)Math.Ceiling((double)TotalCount / PageSize);
     private async Task OnFiltersChanged() => await LoadPage(1);
 
     // Modal (billede i stor størrelse)
@@ -158,6 +160,7 @@
     // Component refs
     private AddHighlightComponent? addComponent;
     private ConfirmDeleteComponent? confirmComponent;
+    private DotNetObjectReference<HighlightPage>? resizeReference;
 
     // Delete-flow
     private Highlight? HighlightToDelete;
@@ -194,6 +197,50 @@
         CurrentUser = await AuthService.GetCurrentUser();
 
         // Load første side
+        await LoadPage(1);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        resizeReference = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("whistViewport.watchHighlightPageSize", resizeReference);
+
+        var responsivePageSize = await GetResponsivePageSize();
+        await ApplyPageSize(responsivePageSize);
+    }
+
+    [JSInvokable]
+    public async Task OnHighlightPageSizeChanged(int pageSize)
+    {
+        await InvokeAsync(async () => await ApplyPageSize(pageSize));
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("whistViewport.unwatchHighlightPageSize");
+        }
+        catch (JSException)
+        {
+            // Siden kan være ved at lukke, hvor JS runtime ikke længere er tilgængelig.
+        }
+
+        resizeReference?.Dispose();
+    }
+
+    private async Task ApplyPageSize(int pageSize)
+    {
+        if (pageSize <= 0)
+            return;
+
+        if (pageSize == PageSize)
+            return;
+
+        PageSize = pageSize;
         await LoadPage(1);
     }
 
@@ -298,5 +345,17 @@
 
         var local = TimeZoneInfo.ConvertTimeFromUtc(utcDate, CopenhagenTz);
         return local.ToString("d. MMMM yyyy", DanishCulture);
+    }
+
+    private async Task<int> GetResponsivePageSize()
+    {
+        try
+        {
+            return await JS.InvokeAsync<int>("whistViewport.getHighlightPageSize");
+        }
+        catch (JSException)
+        {
+            return 6;
+        }
     }
 }
