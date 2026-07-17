@@ -61,6 +61,9 @@ public sealed class UserController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Password))
             return BadRequest(new { message = "Adgangskode er påkrævet." });
 
+        if (!_imageStorage.IsAllowedImageUrl(request.ImageUrl))
+            return BadRequest(new { message = "Billed-URL er ikke tilladt." });
+
         var existingUsers = await CosmosDbContext.ReadAllAsync<ApplicationUser>(_cosmos.Users, cancellationToken);
         var minimumNextUserId = existingUsers.Any() ? existingUsers.Max(user => user.Id) + 1 : 1;
 
@@ -115,6 +118,9 @@ public sealed class UserController : ControllerBase
 
         if (HasMissingRequiredProfileText(request))
             return BadRequest(new { message = "Navn, kaldenavn, email, adresse og telefonnummer skal udfyldes." });
+
+        if (!_imageStorage.IsAllowedImageUrl(request.ImageUrl))
+            return BadRequest(new { message = "Billed-URL er ikke tilladt." });
 
         var user = await _userManager.FindByIdAsync(id.ToString());
         if (user is null)

@@ -6,4 +6,5 @@ public interface IImageStorageService
 {
     Task<string> UploadImageAsync(IFormFile file, int? actorUserId, CancellationToken cancellationToken);
     Task<bool> TryDeleteImageAsync(string? imageUrl, CancellationToken cancellationToken);
+    bool IsAllowedImageUrl(string? imageUrl);
 }
