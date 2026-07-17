@@ -91,6 +91,9 @@ public sealed class BlobImageStorageService : IImageStorageService
         }
     }
 
+    public bool IsAllowedImageUrl(string? imageUrl)
+        => string.IsNullOrWhiteSpace(imageUrl) || TryGetBlobName(imageUrl) is not null;
+
     private string BuildPublicUrl(string blobName, Uri blobUri)
     {
         if (string.IsNullOrWhiteSpace(_options.PublicBaseUrl))

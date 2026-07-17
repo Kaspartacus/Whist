@@ -48,8 +48,10 @@ public class UploadController : ControllerBase
     [HttpPost("image")]
     [Authorize]
     [EnableRateLimiting("upload")]
-    public async Task<IActionResult> UploadImage([FromForm] IFormFile file, CancellationToken ct)
+    public async Task<IActionResult> UploadImage([FromForm] UploadImageRequest request, CancellationToken ct)
     {
+        var file = request.File;
+
         // 1) Basis validering
         if (file is null || file.Length == 0)
         {
@@ -113,5 +115,10 @@ public class UploadController : ControllerBase
     {
         var value = User.FindFirst("sub")?.Value;
         return int.TryParse(value, out var userId) ? userId : null;
+    }
+
+    public sealed class UploadImageRequest
+    {
+        public IFormFile? File { get; set; }
     }
 }

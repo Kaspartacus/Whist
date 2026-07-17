@@ -119,6 +119,9 @@ public class HighlightController : ControllerBase
         if (request.Date is null || request.Date.Value == default)
             return BadRequest(new { message = "Dato er ugyldig." });
 
+        if (!_imageStorage.IsAllowedImageUrl(request.ImageUrl))
+            return BadRequest(new { message = "Billed-URL er ikke tilladt." });
+
         var highlight = ToHighlight(request);
         highlight.UserId = GetCurrentUserId();
         var created = await _repository.Add(highlight);
@@ -144,6 +147,9 @@ public class HighlightController : ControllerBase
 
         if (request.Date is null || request.Date.Value == default)
             return BadRequest(new { message = "Dato er ugyldig." });
+
+        if (!_imageStorage.IsAllowedImageUrl(request.ImageUrl))
+            return BadRequest(new { message = "Billed-URL er ikke tilladt." });
 
         var existing = await _repository.GetById(id);
         if (existing is null)

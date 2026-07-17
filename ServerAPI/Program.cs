@@ -214,6 +214,17 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             }));
 
+    options.AddPolicy("refresh", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            $"refresh:{GetClientIp(httpContext)}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
     options.AddPolicy("upload", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             GetAuthenticatedUserId(httpContext) ?? GetClientIp(httpContext),
