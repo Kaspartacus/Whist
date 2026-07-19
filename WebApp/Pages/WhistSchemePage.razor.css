@@ -135,14 +135,14 @@ th.cell-blue.very-high {
     transition: box-shadow 0.14s ease, filter 0.14s ease;
 }
 
-.point-table tbody tr:hover th,
-.point-table tbody tr:hover td {
+.point-table.can-interact tbody tr:hover th,
+.point-table.can-interact tbody tr:hover td {
     box-shadow:
         inset 0 2px 0 rgba(17, 24, 39, 0.45),
         inset 0 -2px 0 rgba(17, 24, 39, 0.45);
 }
 
-.point-table tbody tr:hover th:first-child {
+.point-table.can-interact tbody tr:hover th:first-child {
     box-shadow:
         inset 4px 0 0 var(--color-primary),
         inset 0 2px 0 rgba(17, 24, 39, 0.45),
@@ -330,19 +330,29 @@ h3.whist-point-title {
         z-index: 2;
     }
 
-    .point-table thead th:first-child {
-        background-color: var(--color-surface-muted);
+    .point-table thead th {
+        position: sticky;
+        top: 0;
         z-index: 3;
+        box-shadow: 0 2px 0 black;
     }
 
-    .point-table tbody tr:hover th,
-    .point-table tbody tr:hover td {
+    .point-table thead th:first-child {
+        background-color: var(--color-surface-muted);
+        z-index: 4;
+        box-shadow:
+            2px 0 0 black,
+            0 2px 0 black;
+    }
+
+    .point-table.can-interact tbody tr:hover th,
+    .point-table.can-interact tbody tr:hover td {
         box-shadow:
             inset 0 2px 0 rgba(17, 24, 39, 0.55),
             inset 0 -2px 0 rgba(17, 24, 39, 0.55);
     }
 
-    .point-table tbody tr:hover th:first-child {
+    .point-table.can-interact tbody tr:hover th:first-child {
         box-shadow:
             inset 4px 0 0 var(--color-primary),
             inset 0 2px 0 rgba(17, 24, 39, 0.55),
