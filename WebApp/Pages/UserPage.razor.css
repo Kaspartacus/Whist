@@ -49,44 +49,48 @@
     width: 100%;
     max-width: 900px;
     overflow: hidden;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     min-height: 350px;
 }
 
 /* Venstre side */
 .user-left {
-    width: 200px;
-    max-width: 260px;
+    width: 240px;
+    max-width: 280px;
     overflow-wrap: break-word;
     white-space: normal;
     background-color: var(--color-surface-muted);
-    padding: 10px;
+    padding: 1.25rem 1rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    height: 100%;
-    position: relative;
+    gap: 0.45rem;
+    align-self: stretch;
     min-height: 350px;
 }
 
 .user-image {
-    width: 180px;
-    height: 180px;
+    width: 168px;
+    height: 168px;
     object-fit: cover;
     border-radius: 50%;
-    margin-bottom: 0.2rem;
+    margin-bottom: 0.45rem;
     background-color: #eee;
+    border: 4px solid var(--color-surface);
+    box-shadow: var(--shadow-sm);
 }
 
 .user-name {
-    font-size: 0.74rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 0.98rem;
+    font-weight: 800;
+    line-height: 1.2;
+    white-space: normal;
     text-align: center;
-    margin-bottom: 0.2rem;
+    margin-bottom: 0;
     max-width: 100%;
+    overflow-wrap: anywhere;
+    color: var(--color-text);
 }
 
 /* I din markup hedder den user-nickname (tidl. var der kun .nickname) */
@@ -94,31 +98,38 @@
 .nickname {
     font-style: italic;
     color: var(--color-text-muted);
-    font-size: 1rem;
+    font-size: 0.95rem;
+    line-height: 1.25;
+    text-align: center;
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 /* Kontaktinfo (kun synlig for loggede brugere) */
 .user-contact {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    width: calc(100% - 20px);
+    width: 100%;
+    margin-top: auto;
+    padding-top: 1rem;
     text-align: left;
-    font-size: 0.7rem;
+    font-size: 0.76rem;
     color: var(--color-text);
-    line-height: 1.8;
+    line-height: 1.45;
     overflow: hidden;
 }
 
 .contact-row {
     display: flex;
-    gap: 6px;
+    gap: 0.5rem;
     align-items: flex-start;
+    padding: 0.22rem 0;
 }
 
 .contact-row i {
     flex: 0 0 auto;
-    margin-top: 2px;
+    width: 1rem;
+    margin-top: 1px;
+    color: var(--color-primary);
+    text-align: center;
 }
 
 .contact-text {
@@ -134,7 +145,7 @@
     flex: 2;
     min-width: 0;
     max-width: 100%;
-    padding: 0.5rem;
+    padding: 0.75rem;
 }
 
 .fun-fact {
@@ -175,7 +186,7 @@
     overflow-wrap: break-word;
     white-space: pre-line;
     line-height: 1.5;
-    font-size: 0.78rem;
+    font-size: 0.86rem;
     color: var(--color-text);
 }
 
@@ -220,18 +231,19 @@
     }
 
     .user-card {
-        flex-direction: row;
-        flex-wrap: wrap;
+        flex-direction: column;
+        flex-wrap: nowrap;
         width: 100%;
         max-width: 100%;
         overflow: hidden;
-        min-height: 300px;
+        min-height: 0;
     }
 
     .user-left {
-        width: 160px;
-        min-height: 250px;
-        padding: 0.7rem;
+        width: 100%;
+        max-width: none;
+        min-height: 0;
+        padding: 1rem;
     }
 
     .user-image {
@@ -240,24 +252,24 @@
     }
 
     .user-name {
-        font-size: 0.7rem;
+        font-size: 1rem;
     }
 
     .user-nickname,
     .nickname {
-        font-size: 0.75rem;
+        font-size: 0.9rem;
     }
 
     .user-contact {
-        font-size: 0.65rem;
-        left: 10px;
-        bottom: 10px;
+        font-size: 0.78rem;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
     }
 
     .user-right {
-        padding: 0.7rem;
+        padding: 0.9rem;
         min-width: 0;
-        font-size: 0.75rem;
+        font-size: 0.82rem;
     }
 
     .fun-fact {
@@ -268,7 +280,7 @@
 
     .about-section,
     .about-section p {
-        font-size: 0.75rem;
+        font-size: 0.82rem;
         line-height: 1.4;
     }
 }

@@ -29,13 +29,15 @@
 
 /* --- Filter box --- */
 .filter-box {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1rem;
     background-color: var(--color-surface-muted);
     padding: 1rem;
     border-radius: var(--radius-lg);
     margin-bottom: 2rem;
-    flex-wrap: wrap;
+    border: 1px solid rgba(203, 213, 225, 0.45);
+    box-shadow: var(--shadow-sm);
 }
 
 .filter-item {
@@ -44,21 +46,78 @@
     gap: 0.5rem;
 
     background-color: var(--color-surface);
-    border: 1px solid transparent;
-    padding: 0.5rem 0.75rem;
-    border-radius: var(--radius-md);
+    border: 1px solid rgba(203, 213, 225, 0.7);
+    min-height: 52px;
+    padding: 0.55rem 0.8rem;
+    border-radius: var(--radius-lg);
 
-    flex-grow: 1;
-    min-width: 200px;
+    min-width: 0;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.filter-item:hover {
+    border-color: rgba(99, 102, 241, 0.35);
+    background-color: #fbfcff;
+}
+
+.filter-item:focus-within {
+    border-color: var(--color-primary);
+    box-shadow: var(--focus-ring);
 }
 
 .filter-item input {
     border: none;
     outline: none;
     width: 100%;
-    font-size: 1rem;
+    font-size: 0.98rem;
+    font-weight: 600;
     background-color: transparent;
     color: var(--color-text);
+}
+
+.filter-item.date {
+    gap: 0.7rem;
+}
+
+.filter-item.date input {
+    cursor: pointer;
+    color-scheme: light;
+}
+
+.filter-item.date input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    width: 1.35rem;
+    height: 1.35rem;
+    padding: 0.25rem;
+    border-radius: 999px;
+    background-color: var(--color-primary-soft);
+    opacity: 0.85;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.filter-item.date input::-webkit-calendar-picker-indicator:hover {
+    background-color: #e0e7ff;
+    opacity: 1;
+}
+
+.icon-search,
+.icon-calendar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 999px;
+    background: var(--color-primary-soft);
+    font-size: 1rem;
+    opacity: 0.9;
+    flex: 0 0 auto;
+}
+
+@media (max-width: 768px) {
+    .filter-box {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* --- Grid/cards --- */
@@ -219,12 +278,32 @@
 
 .close-button {
     position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-
-    color: red;
-    background: none;
-    border: none;
-    font-size: 1.5rem;
+    top: -0.85rem;
+    right: -0.85rem;
+    width: 2.4rem;
+    height: 2.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text);
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(203, 213, 225, 0.85);
+    border-radius: 999px;
+    box-shadow: var(--shadow-md);
+    font-size: 1.75rem;
+    font-weight: 500;
+    line-height: 1;
     cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.close-button:hover {
+    background: var(--color-danger);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.close-button:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-md), var(--focus-ring);
 }

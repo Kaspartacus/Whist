@@ -124,12 +124,12 @@
 
         <div class="filter-item date">
             <span class="icon-calendar">📅</span>
-            <input type="date" @bind-value="filterFromDate" @bind-value:event="oninput" @bind-value:after="OnFiltersChanged" />
+            <input type="date" aria-label="Filtrer fra dato" @bind-value="filterFromDate" @bind-value:event="oninput" @bind-value:after="OnFiltersChanged" />
         </div>
 
         <div class="filter-item date">
             <span class="icon-calendar">📅</span>
-            <input type="date" @bind-value="filterToDate" @bind-value:event="oninput" @bind-value:after="OnFiltersChanged" />
+            <input type="date" aria-label="Filtrer til dato" @bind-value="filterToDate" @bind-value:event="oninput" @bind-value:after="OnFiltersChanged" />
         </div>
     </div>
 

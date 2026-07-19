@@ -46,14 +46,14 @@
                @bind:after="OnFiltersChanged" />
     </div>
 
-    <div class="filter-item">
+    <div class="filter-item date">
         <span class="icon-calendar">📅</span>
-        <input type="date" @bind="filterFrom"  @bind:after="OnFiltersChanged" />
+        <input type="date" aria-label="Filtrer fra dato" @bind="filterFrom"  @bind:after="OnFiltersChanged" />
     </div>
 
-    <div class="filter-item">
+    <div class="filter-item date">
         <span class="icon-calendar">📅</span>
-        <input type="date" @bind="filterTo" @bind:after="OnFiltersChanged" />
+        <input type="date" aria-label="Filtrer til dato" @bind="filterTo" @bind:after="OnFiltersChanged" />
     </div>
 </div>
 
@@ -121,7 +121,7 @@
 {
     <div class="image-modal-backdrop" @onclick="CloseImageModal">
         <div class="image-modal-content" @onclick:stopPropagation>
-            <button class="close-button" @onclick="CloseImageModal">x</button>
+            <button class="close-button" type="button" aria-label="Luk billede" @onclick="CloseImageModal">×</button>
             <img src="@ExpandedImageUrl" alt="Udvidet billede" />
         </div>
     </div>
