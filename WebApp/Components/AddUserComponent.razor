@@ -122,6 +122,11 @@
                 </div>
             }
 
+            @if (IsUploadingImage)
+            {
+                <div class="upload-status">Uploader billede...</div>
+            }
+
             <div class="file-input-wrapper">
                 <InputFile id="file-upload" OnChange="HandleImageUpload" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
             </div>
@@ -190,7 +195,7 @@
                - Primær knap gemmer (CreateUser)
                - Cancel lukker uden at gemme *@
             <div class="modal-actions">
-                <button @ref="ConfirmButtonRef" class="modal-btn primary" @onclick="CreateUser">
+                <button @ref="ConfirmButtonRef" class="modal-btn primary" disabled="@IsUploadingImage" @onclick="CreateUser">
                     @(UserToEdit is null ? "Opret bruger" : "Gem ændringer")
                 </button>
 
@@ -224,7 +229,14 @@
     // Upload state
     private IBrowserFile? UploadedImage;
     private string? ImagePreview;               // URL fra UploadService (bruges som preview + gemmes på user)
+    private string? UploadedImageUrl;
     private string? UploadErrorMessage;
+    private bool IsUploadingImage;
+    private int _imageUploadVersion;
+
+    private const string BrowserOptimizedImageType = "image/jpeg";
+    private const int MaxClientImageDimension = 1600;
+    private const long MaxPreviewBytes = 3 * 1024 * 1024;
 
     // Edit state
     private User? UserToEdit;
@@ -286,6 +298,7 @@
             // Billede: bevar eksisterende url (og brug den som preview hvis der ikke uploades nyt)
             ImageUrl = userToEdit.ImageUrl;
             ImagePreview = userToEdit.ImageUrl;
+            UploadedImageUrl = userToEdit.ImageUrl;
         }
         else
         {
@@ -310,6 +323,7 @@
 
             ImageUrl = "";
             ImagePreview = null;
+            UploadedImageUrl = null;
         }
 
         showModal = true;
@@ -331,10 +345,13 @@
 
         UploadedImage = null;
         ImagePreview = null;
+        UploadedImageUrl = null;
         ImageUrl = "";
 
         ValidationErrorMessage = null;
         UploadErrorMessage = null;
+        IsUploadingImage = false;
+        _imageUploadVersion++;
         UserToEdit = null;
     }
 
@@ -349,15 +366,29 @@
     private async Task HandleImageUpload(InputFileChangeEventArgs e)
     {
         UploadedImage = e.File;
+        UploadedImageUrl = null;
         UploadErrorMessage = null;
+        IsUploadingImage = true;
+        var uploadVersion = ++_imageUploadVersion;
 
         try
         {
-            var resultUrl = await UploadService.UploadImageAsync(UploadedImage);
+            var optimizedImage = await UploadedImage.RequestImageFileAsync(
+                BrowserOptimizedImageType,
+                MaxClientImageDimension,
+                MaxClientImageDimension);
+
+            ImagePreview = await CreatePreviewDataUrlAsync(optimizedImage);
+            await InvokeAsync(StateHasChanged);
+
+            var resultUrl = await UploadService.UploadImageAsync(optimizedImage);
+
+            if (uploadVersion != _imageUploadVersion)
+                return;
 
             if (!string.IsNullOrEmpty(resultUrl))
             {
-                ImagePreview = resultUrl;
+                UploadedImageUrl = resultUrl;
             }
             else
             {
@@ -366,10 +397,24 @@
         }
         catch (Exception ex)
         {
-            UploadErrorMessage = "Fejl under upload: " + ex.Message;
+            if (uploadVersion == _imageUploadVersion)
+                UploadErrorMessage = "Fejl under upload: " + ex.Message;
+        }
+        finally
+        {
+            if (uploadVersion == _imageUploadVersion)
+                IsUploadingImage = false;
         }
 
         await InvokeAsync(StateHasChanged);
+    }
+
+    private static async Task<string> CreatePreviewDataUrlAsync(IBrowserFile file)
+    {
+        await using var stream = file.OpenReadStream(Math.Max(file.Size, MaxPreviewBytes));
+        using var buffer = new MemoryStream();
+        await stream.CopyToAsync(buffer);
+        return $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}";
     }
 
     // =========================
@@ -386,6 +431,12 @@
         if (string.IsNullOrWhiteSpace(Name) || Name.Length > 40)
         {
             ValidationErrorMessage = "Navn er påkrævet (maks 40 tegn).";
+            return;
+        }
+
+        if (IsUploadingImage)
+        {
+            ValidationErrorMessage = "Vent et øjeblik, billedet uploader stadig.";
             return;
         }
 
@@ -472,7 +523,7 @@
 
             // Hvis der er uploadet et nyt billede, bruger vi det.
             // Ellers bevarer vi det eksisterende.
-            UserToEdit.ImageUrl = ImagePreview ?? UserToEdit.ImageUrl;
+            UserToEdit.ImageUrl = UploadedImageUrl ?? UserToEdit.ImageUrl;
 
             try
             {
@@ -507,7 +558,7 @@
                 BirthDate = BirthDate,
                 Description = Description,
                 FunFact = FunFact,
-                ImageUrl = ImagePreview ?? ""
+                ImageUrl = UploadedImageUrl ?? ""
             };
 
             await UserService.AddUser(newUser, Password);

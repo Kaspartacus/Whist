@@ -12,6 +12,8 @@ public sealed class BlobImageStorageService : IImageStorageService
     private readonly BlobContainerClient _container;
     private readonly BlobStorageOptions _options;
     private readonly ILogger<BlobImageStorageService> _logger;
+    private readonly SemaphoreSlim _containerInitializationLock = new(1, 1);
+    private bool _containerInitialized;
 
     public BlobImageStorageService(
         IOptions<BlobStorageOptions> options,
@@ -24,7 +26,7 @@ public sealed class BlobImageStorageService : IImageStorageService
 
     public async Task<string> UploadImageAsync(IFormFile file, int? actorUserId, CancellationToken cancellationToken)
     {
-        await _container.CreateIfNotExistsAsync(PublicAccessType.Blob, cancellationToken: cancellationToken);
+        await EnsureContainerExistsAsync(cancellationToken);
 
         await using var input = file.OpenReadStream();
         using var image = await Image.LoadAsync(input, cancellationToken);
@@ -66,6 +68,26 @@ public sealed class BlobImageStorageService : IImageStorageService
             actorUserId);
 
         return BuildPublicUrl(blobName, blob.Uri);
+    }
+
+    private async Task EnsureContainerExistsAsync(CancellationToken cancellationToken)
+    {
+        if (_containerInitialized)
+            return;
+
+        await _containerInitializationLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_containerInitialized)
+                return;
+
+            await _container.CreateIfNotExistsAsync(PublicAccessType.Blob, cancellationToken: cancellationToken);
+            _containerInitialized = true;
+        }
+        finally
+        {
+            _containerInitializationLock.Release();
+        }
     }
 
     public async Task<bool> TryDeleteImageAsync(string? imageUrl, CancellationToken cancellationToken)
