@@ -6,17 +6,30 @@ namespace ServerAPI.Utils;
 
 /// <summary>
 /// Centralt sted til interne "text rules".
-/// Lige nu: auto-udskift KSDH (case-insensitive) => BIF&lt;3
 /// </summary>
 public static class TextAutoReplace
 {
-    private static readonly Regex KsdhRegex = new("KSDH", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    private static readonly Regex KsdhRegex = new(
+        @"(?<![\p{L}\p{N}])K[\W_]*S[\W_]*D[\W_]*H(?![\p{L}\p{N}])",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
-    /// <summary>Erstatter KSDH/ksdh/uanset casing med BIF&lt;3.</summary>
+    private static readonly Regex AgfRegex = new(
+        @"(?<![\p{L}\p{N}])A[\W_]*G[\W_]*F(?![\p{L}\p{N}])",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    private static readonly Regex HaderBrondbyRegex = new(
+        @"(?<![\p{L}\p{N}])h[\W_]*a[\W_]*d[\W_]*e[\W_]*r[\W_]+b[\W_]*r[\W_]*ø[\W_]*n[\W_]*d[\W_]*b[\W_]*y(?![\p{L}\p{N}])",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    /// <summary>Erstatter interne tekstmønstre case-insensitive og med tolerant tegnsætning.</summary>
     public static string? Apply(string? input)
     {
         if (string.IsNullOrEmpty(input)) return input;
-        return KsdhRegex.Replace(input, "BIF<3");
+
+        var updated = KsdhRegex.Replace(input, "BIF <3");
+        updated = AgfRegex.Replace(updated, "BIF <3");
+        updated = HaderBrondbyRegex.Replace(updated, "elsker Brøndby");
+        return updated;
     }
 
     public static string? Apply(string? input, ILogger logger, string fieldName)
