@@ -1,0 +1,165 @@
+@implements IDisposable
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+@if (_isVisible)
+{
+    <div class="brondby-easter-egg" @onclick="Hide">
+        <div class="brondby-easter-egg__content" @onclick:stopPropagation="true">
+            <button class="brondby-easter-egg__close"
+                    type="button"
+                    aria-label="Luk"
+                    @onclick="Hide">
+                x
+            </button>
+
+            <div class="brondby-easter-egg__text">
+                <h2>Hvis du har haft en hård dag...</h2>
+                <p>så får du lige noget, der kan gøre den lidt bedre.</p>
+            </div>
+
+            <img src="/Images/brondby-easter-egg.jpg" alt="Brondby IF fejring" />
+        </div>
+    </div>
+}
+
+@code {
+    private const string LastShownStorageKey = "whist.brondbyEasterEggLastShownAt";
+    private static readonly TimeSpan ShowInterval = TimeSpan.FromHours(1);
+    private static readonly TimeSpan DisplayDuration = TimeSpan.FromSeconds(5);
+
+    private CancellationTokenSource? _delayCts;
+    private bool _isVisible;
+    private bool _isDisposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Nav.LocationChanged += OnLocationChanged;
+
+        if (IsForced())
+            await ShowNow(markAsShown: false);
+        else
+            await ScheduleNext();
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        if (IsForced())
+            await ShowNow(markAsShown: false);
+        else
+            await ScheduleNext();
+    }
+
+    private async Task ScheduleNext()
+    {
+        if (_isDisposed || _isVisible)
+            return;
+
+        _delayCts?.Cancel();
+        _delayCts?.Dispose();
+
+        var delay = await GetDelayUntilNextShow();
+        _delayCts = new CancellationTokenSource();
+        _ = ShowAfterDelay(delay, _delayCts.Token);
+    }
+
+    private async Task ShowAfterDelay(TimeSpan delay, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(delay, cancellationToken);
+            if (cancellationToken.IsCancellationRequested || _isDisposed)
+                return;
+
+            await ShowNow(markAsShown: true, cancelScheduledShow: false, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task ShowNow(
+        bool markAsShown,
+        bool cancelScheduledShow = true,
+        CancellationToken cancellationToken = default)
+    {
+        if (_isVisible)
+            return;
+
+        if (cancelScheduledShow)
+            _delayCts?.Cancel();
+
+        _isVisible = true;
+        if (markAsShown)
+            await SaveLastShownAt(DateTimeOffset.UtcNow);
+
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await Task.Delay(DisplayDuration, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        await Hide();
+    }
+
+    private async Task Hide()
+    {
+        if (!_isVisible)
+            return;
+
+        _isVisible = false;
+        await InvokeAsync(StateHasChanged);
+
+        if (!_isDisposed)
+            await ScheduleNext();
+    }
+
+    private async Task<TimeSpan> GetDelayUntilNextShow()
+    {
+        try
+        {
+            var value = await JS.InvokeAsync<string?>("localStorage.getItem", LastShownStorageKey);
+            if (long.TryParse(value, out var lastShownMs))
+            {
+                var lastShown = DateTimeOffset.FromUnixTimeMilliseconds(lastShownMs);
+                var elapsed = DateTimeOffset.UtcNow - lastShown;
+                return elapsed >= ShowInterval ? TimeSpan.Zero : ShowInterval - elapsed;
+            }
+        }
+        catch
+        {
+        }
+
+        return ShowInterval;
+    }
+
+    private async Task SaveLastShownAt(DateTimeOffset value)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "localStorage.setItem",
+                LastShownStorageKey,
+                value.ToUnixTimeMilliseconds().ToString());
+        }
+        catch
+        {
+        }
+    }
+
+    private bool IsForced()
+        => new Uri(Nav.Uri).Query.Contains("brondbyEgg=1", StringComparison.OrdinalIgnoreCase);
+
+    public void Dispose()
+    {
+        _isDisposed = true;
+        Nav.LocationChanged -= OnLocationChanged;
+        _delayCts?.Cancel();
+        _delayCts?.Dispose();
+    }
+}

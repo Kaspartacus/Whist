@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using ServerAPI.Auth;
 using ServerAPI.Configuration;
 using ServerAPI.Storage;
+using ServerAPI.Utils;
 
 namespace ServerAPI.Controllers;
 
@@ -268,13 +269,13 @@ public sealed class UserController : ControllerBase
 
     private static void ApplyProfile(SaveUserRequest request, ApplicationUser user)
     {
-        user.Name = request.Name.Trim();
-        user.NickName = request.NickName.Trim();
-        user.Address = request.Address.Trim();
+        user.Name = TextAutoReplace.Apply(request.Name.Trim()) ?? "";
+        user.NickName = TextAutoReplace.Apply(request.NickName.Trim()) ?? "";
+        user.Address = TextAutoReplace.Apply(request.Address.Trim()) ?? "";
         user.PhoneNumber = request.PhoneNumber.Trim();
         user.BirthDate = request.BirthDate;
-        user.Description = request.Description?.Trim() ?? "";
-        user.FunFact = request.FunFact?.Trim() ?? "";
+        user.Description = TextAutoReplace.Apply(request.Description?.Trim()) ?? "";
+        user.FunFact = TextAutoReplace.Apply(request.FunFact?.Trim()) ?? "";
         user.ImageUrl = request.ImageUrl?.Trim() ?? "";
     }
 
