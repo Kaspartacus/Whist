@@ -31,7 +31,7 @@ td {
 }
 
 .cell-empty {
-    background-color: slategrey;
+    background-color: #8fa1ad;
     color: transparent;
     cursor: default;
 }
@@ -41,70 +41,72 @@ td {
 ----------------------------------------- */
 /* Rød */
 .cell-red.low {
-    background-color: rgba(244, 161, 161, 0.1);
+    background-color: #fff1ee;
 }
 .cell-red.medium {
-    background-color: rgba(244, 161, 161, 0.4);
+    background-color: #f6d0c9;
 }
 .cell-red.high {
-    background-color: rgba(244, 161, 161, 0.7);
+    background-color: #eeaaa3;
 }
 .cell-red.very-high {
-    background-color: rgba(244, 161, 161, 1);
+    background-color: #e9827d;
 }
 
 /* Gul */
 .cell-yellow.low {
-    background-color: rgba(255, 230, 0, 0.1);
+    background-color: #fff9df;
 }
 .cell-yellow.medium {
-    background-color: rgba(255, 230, 0, 0.4);
+    background-color: #f6e99b;
 }
 .cell-yellow.high {
-    background-color: rgba(255, 230, 0, 0.7);
+    background-color: #ecd75e;
 }
 .cell-yellow.very-high {
-    background-color: rgba(255, 230, 0, 1);
+    background-color: #d9bf24;
 }
 
 /* Grøn */
 .cell-green.low {
-    background-color: rgba(160, 240, 208, 0.1);
+    background-color: #eef8f1;
 }
 .cell-green.medium {
-    background-color: rgba(160, 240, 208, 0.4);
+    background-color: #c8ead4;
 }
 .cell-green.high {
-    background-color: rgba(160, 240, 208, 0.7);
+    background-color: #9eddbc;
 }
 .cell-green.very-high {
-    background-color: rgba(160, 240, 208, 1);
+    background-color: #78cea3;
 }
 
 /* -----------------------------------------
    th farve (blå baggrund til meldings-kolonne)
 ----------------------------------------- */
 th.cell-blue.low {
-    background-color: rgba(204, 224, 247, 0.1);
+    background-color: #edf5fb;
 }
 th.cell-blue.medium {
-    background-color: rgba(204, 224, 247, 0.4);
+    background-color: #d7e9f7;
 }
 th.cell-blue.high {
-    background-color: rgba(204, 224, 247, 0.7);
+    background-color: #c2dcf2;
 }
 th.cell-blue.very-high {
-    background-color: rgba(204, 224, 247, 1);
+    background-color: #abcce8;
 }
 
 /* -----------------------------------------
    Hover (kun aktive celler)
 ----------------------------------------- */
 .point-table td:not(.cell-empty):not(.disabled):hover {
-    outline: 2px solid black;
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
     cursor: pointer;
-    filter: brightness(1.1);
-    transition: all 0.15s ease-in-out;
+    filter: brightness(1.08);
+    position: relative;
+    z-index: 1;
 }
 
 .point-table td.disabled {
@@ -130,6 +132,21 @@ th.cell-blue.very-high {
     font-weight: bold;
     border: 2px solid black;
     text-align: center;
+    transition: box-shadow 0.14s ease, filter 0.14s ease;
+}
+
+.point-table tbody tr:hover th,
+.point-table tbody tr:hover td {
+    box-shadow:
+        inset 0 2px 0 rgba(17, 24, 39, 0.45),
+        inset 0 -2px 0 rgba(17, 24, 39, 0.45);
+}
+
+.point-table tbody tr:hover th:first-child {
+    box-shadow:
+        inset 4px 0 0 var(--color-primary),
+        inset 0 2px 0 rgba(17, 24, 39, 0.45),
+        inset 0 -2px 0 rgba(17, 24, 39, 0.45);
 }
 
 /* -- Justér h3-overskriften med samme bredde/centrering -- */
