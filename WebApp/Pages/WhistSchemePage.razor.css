@@ -393,11 +393,12 @@ h3.whist-point-title {
 
     .table-scroll {
         width: 100%;
-        overflow-x: auto;
+        max-height: 72svh;
+        overflow: auto;
         -webkit-overflow-scrolling: touch;
         padding-bottom: 0.35rem;
         border-radius: var(--radius-sm);
-        overscroll-behavior-x: contain;
+        overscroll-behavior: contain;
         scrollbar-color: var(--color-border-strong) transparent;
     }
 
