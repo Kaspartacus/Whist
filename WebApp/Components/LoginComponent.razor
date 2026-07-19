@@ -4,16 +4,21 @@
 @inject NavigationManager Navigation
 
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
 
 @* Vises kun når "show" er true *@
 @if (show)
 {
     <div class="modal-overlay" 
-         @onclick="OnBackdropClick"
          tabindex="0"
-         @onkeydown="HandleKeyDown">
+         @onkeydown="HandleKeyDown"
+         @onmousedown="StartBackdropClick"
+         @onclick="HideFromBackdrop">
         @* Stop klik i selve boksen fra at lukke modal *@
-        <div class="modal-box" @onclick:stopPropagation="true">
+        <div class="modal-box"
+             @onmousedown:stopPropagation="true"
+             @onclick:stopPropagation="true">
             <h3>Log ind</h3>
 
             @* oninput = opdaterer state mens man skriver *@
@@ -53,6 +58,8 @@
     // Fokus-håndtering (så Enter virker direkte)
     private ElementReference ConfirmButtonRef;
     private bool _shouldFocusConfirmButton;
+    private bool _isScrollLocked;
+    private bool _backdropClickStarted;
 
     /// <summary>
     /// Vises udefra (fx via @ref i NavMenu).
@@ -61,6 +68,8 @@
     {
         show = true;
         errorMessage = "";
+        _shouldFocusConfirmButton = true;
+        _ = LockModalScrollAsync();
         StateHasChanged(); // vigtigt når kaldet kommer udefra
     }
 
@@ -70,16 +79,11 @@
     public void Hide()
     {
         show = false;
+        _ = UnlockModalScrollAsync();
         email = "";
         password = "";
         errorMessage = "";
         StateHasChanged(); // sikrer at UI opdaterer med det samme når man lukker
-    }
-
-    private void OnBackdropClick()
-    {
-        // Klik udenfor boksen lukker modal (valgfrit, men lækkert UX)
-        Hide();
     }
 
     private async Task Login()
@@ -144,5 +148,32 @@
     // =========================
     private Task OnEnter() => Login();
     private Task OnEscape() { Hide(); return Task.CompletedTask; }
+
+    private void StartBackdropClick()
+    {
+        _backdropClickStarted = true;
+    }
+
+    private void HideFromBackdrop()
+    {
+        if (!_backdropClickStarted) return;
+
+        _backdropClickStarted = false;
+        Hide();
+    }
+
+    private async Task LockModalScrollAsync()
+    {
+        if (_isScrollLocked) return;
+        _isScrollLocked = true;
+        try { await JS.InvokeVoidAsync("whistModalLock.lock"); } catch { }
+    }
+
+    private async Task UnlockModalScrollAsync()
+    {
+        if (!_isScrollLocked) return;
+        _isScrollLocked = false;
+        try { await JS.InvokeVoidAsync("whistModalLock.unlock"); } catch { }
+    }
 
 }

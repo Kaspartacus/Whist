@@ -1,20 +1,24 @@
 @using Core
 @using WebApp.Service
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
 @inject IUserService UserService
 @inject Service.FineServices.IFineService FineService
+@inject IJSRuntime JS
 
 
 @* Modal vises kun når showModal = true *@
 @if (showModal)
 {
-    @* Klik på baggrunden lukker modal (nice UX) *@
     <div class="modal-backdrop" 
          tabindex="0"
          @onkeydown="HandleKeyDown"
-         @onclick="Close">
+         @onmousedown="StartBackdropClick"
+         @onclick="CloseFromBackdrop">
         @* Stop klik i selve modal-boksen fra at lukke *@
-        <div class="modal-container" @onclick:stopPropagation="true">
+        <div class="modal-container"
+             @onmousedown:stopPropagation="true"
+             @onclick:stopPropagation="true">
             <h3 class="modal-title">
                 @(FineToEdit is null ? "Opret ny bøde" : "Rediger bøde")
             </h3>
@@ -84,6 +88,8 @@
     // Fokus-håndtering (så Enter virker direkte)
     private ElementReference ConfirmButtonRef;
     private bool _shouldFocusConfirmButton;
+    private bool _isScrollLocked;
+    private bool _backdropClickStarted;
 
     // Valideringsfejl vises i UI (bruges kun i denne komponent)
     private string? ValidationErrorMessage;
@@ -136,6 +142,7 @@
         }
 
         showModal = true;
+        await LockModalScrollAsync();
         
         _shouldFocusConfirmButton = true;
 
@@ -146,9 +153,10 @@
     /// <summary>
     /// Lukker modal og nulstiller state.
     /// </summary>
-    private void Close()
+    private async Task Close()
     {
         showModal = false;
+        await UnlockModalScrollAsync();
 
         SelectedUserId = 0;
         Amount = 0;
@@ -213,7 +221,7 @@
         // Fortæl parent at der er sket en ændring (reload liste)
         await OnFineAdded.InvokeAsync();
 
-        Close();
+        await Close();
     }
 
     // =========================
@@ -279,5 +287,32 @@
     // Actions
     // =========================
     private Task OnEnter() => Submit();
-    private Task OnEscape() { Close(); return Task.CompletedTask; }
+    private Task OnEscape() => Close();
+
+    private void StartBackdropClick()
+    {
+        _backdropClickStarted = true;
+    }
+
+    private async Task CloseFromBackdrop()
+    {
+        if (!_backdropClickStarted) return;
+
+        _backdropClickStarted = false;
+        await Close();
+    }
+
+    private async Task LockModalScrollAsync()
+    {
+        if (_isScrollLocked) return;
+        _isScrollLocked = true;
+        try { await JS.InvokeVoidAsync("whistModalLock.lock"); } catch { }
+    }
+
+    private async Task UnlockModalScrollAsync()
+    {
+        if (!_isScrollLocked) return;
+        _isScrollLocked = false;
+        try { await JS.InvokeVoidAsync("whistModalLock.unlock"); } catch { }
+    }
 }
