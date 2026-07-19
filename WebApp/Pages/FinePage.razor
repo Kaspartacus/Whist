@@ -1,6 +1,8 @@
 @page "/bøder"
+@using System.Net
 @using Core
 @using WebApp.Service
+@using WebApp.Service.ApiErrors
 @using WebApp.Service.AuthServices
 @using WebApp.Service.FineServices
 @using WebApp.Components
@@ -355,9 +357,20 @@
 
     private async Task DeleteConfirmed()
     {
-        if (FineToDelete is not null)
+        if (FineToDelete is null)
+            return;
+
+        try
         {
             await FineService.Delete(FineToDelete.UserId, FineToDelete.Id);
+        }
+        catch (ApiRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            // Listen kan være stale, eller brugeren kan have bekræftet samme sletning to gange.
+            // I begge tilfælde er ønsket sluttilstand allerede opnået: bøden findes ikke.
+        }
+        finally
+        {
             FineToDelete = null;
             await ReloadFines();
         }

@@ -34,12 +34,14 @@
                    @ref bruges til at fokusere knappen når modalen åbner *@
                 <button @ref="ConfirmButtonRef"
                         class="@ConfirmButtonClass"
+                        disabled="@_isBusy"
                         @onclick="Confirm">
                     @ConfirmButtonText
                 </button>
 
                 @* "Nej" (Cancel) *@
                 <button class="@CancelButtonClass"
+                        disabled="@_isBusy"
                         @onclick="Cancel">
                     @CancelButtonText
                 </button>
@@ -84,6 +86,7 @@
     // Fokus-håndtering (så Enter virker direkte)
     private ElementReference ConfirmButtonRef;
     private bool _shouldFocusConfirmButton;
+    private bool _isBusy;
 
     // =========================
     // Public API (kaldes fra parent via @ref)
@@ -96,6 +99,7 @@
     public void Show()
     {
         IsVisible = true;
+        _isBusy = false;
         _shouldFocusConfirmButton = true;
         StateHasChanged();
     }
@@ -132,7 +136,7 @@
     /// </summary>
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
-        if (!IsVisible) return;
+        if (!IsVisible || _isBusy) return;
 
         if (e.Key == "Enter")
         {
@@ -150,13 +154,33 @@
 
     private async Task Confirm()
     {
-        IsVisible = false;
-        await OnConfirm.InvokeAsync();
+        if (_isBusy) return;
+
+        _isBusy = true;
+        try
+        {
+            IsVisible = false;
+            await OnConfirm.InvokeAsync();
+        }
+        finally
+        {
+            _isBusy = false;
+        }
     }
 
     private async Task Cancel()
     {
-        IsVisible = false;
-        await OnCancel.InvokeAsync();
+        if (_isBusy) return;
+
+        _isBusy = true;
+        try
+        {
+            IsVisible = false;
+            await OnCancel.InvokeAsync();
+        }
+        finally
+        {
+            _isBusy = false;
+        }
     }
 }
