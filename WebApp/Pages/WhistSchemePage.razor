@@ -30,7 +30,7 @@
 
 @* Hovedskema: rækker = meldinger/labels, kolonner = niveauer (Columns) *@
 <div class="table-scroll">
-    <table class="point-table">
+    <table class="point-table @(_currentUser is not null ? "can-interact" : "")">
         <thead>
         <tr>
             @* Venstre header til selve rækkernes label *@
