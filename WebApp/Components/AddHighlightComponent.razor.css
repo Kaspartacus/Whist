@@ -80,6 +80,12 @@
     color: var(--color-text);
 }
 
+.upload-status {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
 .modal-actions {
     display: flex;
     justify-content: flex-end;
@@ -93,6 +99,11 @@
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s;
+}
+
+.modal-btn:disabled {
+    cursor: wait;
+    opacity: 0.65;
 }
 
 .modal-btn.primary {

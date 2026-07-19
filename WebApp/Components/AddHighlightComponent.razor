@@ -45,6 +45,11 @@
                 <img src="@ImagePreview" alt="Preview" class="modal-image-preview" />
             }
 
+            @if (IsUploadingImage)
+            {
+                <div class="upload-status">Uploader billede...</div>
+            }
+
             <label class="modal-checkbox">
                 <input type="checkbox" @bind="IsPrivate" />
                 Gør privat (kun synlig for medlemmer)
@@ -63,7 +68,7 @@
             }
 
             <div class="modal-actions">
-                <button @ref="ConfirmButtonRef" class="modal-btn primary" @onclick="SaveHighlightAsync">
+                <button @ref="ConfirmButtonRef" class="modal-btn primary" disabled="@IsUploadingImage" @onclick="SaveHighlightAsync">
                     @(HighlightToEdit is null ? "Opret highlight" : "Gem ændringer")
                 </button>
                 <button class="modal-btn cancel" @onclick="Close">Annuller</button>
@@ -86,7 +91,14 @@
     // Upload state
     private IBrowserFile? UploadedImage;
     private string? ImagePreview;               // URL til billede (fra UploadService)
+    private string? UploadedImageUrl;
     private string? UploadErrorMessage;
+    private bool IsUploadingImage;
+    private int _imageUploadVersion;
+
+    private const string BrowserOptimizedImageType = "image/jpeg";
+    private const int MaxClientImageDimension = 1600;
+    private const long MaxPreviewBytes = 3 * 1024 * 1024;
     
     // Fokus-håndtering (så Enter virker direkte)
     private ElementReference ConfirmButtonRef;
@@ -131,6 +143,7 @@
             Title = HighlightToEdit.Title;
             Description = HighlightToEdit.Description;
             ImagePreview = HighlightToEdit.ImageUrl;
+            UploadedImageUrl = HighlightToEdit.ImageUrl;
 
             // Vigtigt: bevar privacy-state ved redigering
             IsPrivate = HighlightToEdit.IsPrivate;
@@ -142,6 +155,7 @@
             Description = "";
             UploadedImage = null;
             ImagePreview = null;
+            UploadedImageUrl = null;
             IsPrivate = false;
         }
 
@@ -162,10 +176,13 @@
         Description = "";
         UploadedImage = null;
         ImagePreview = null;
+        UploadedImageUrl = null;
         IsPrivate = false;
 
         UploadErrorMessage = null;
         ValidationErrorMessage = null;
+        IsUploadingImage = false;
+        _imageUploadVersion++;
     }
 
     // =========================
@@ -178,15 +195,29 @@
     private async Task HandleImageUpload(InputFileChangeEventArgs e)
     {
         UploadedImage = e.File;
+        UploadedImageUrl = null;
         UploadErrorMessage = null;
+        IsUploadingImage = true;
+        var uploadVersion = ++_imageUploadVersion;
 
         try
         {
-            var resultUrl = await UploadService.UploadImageAsync(UploadedImage);
+            var optimizedImage = await UploadedImage.RequestImageFileAsync(
+                BrowserOptimizedImageType,
+                MaxClientImageDimension,
+                MaxClientImageDimension);
+
+            ImagePreview = await CreatePreviewDataUrlAsync(optimizedImage);
+            await InvokeAsync(StateHasChanged);
+
+            var resultUrl = await UploadService.UploadImageAsync(optimizedImage);
+
+            if (uploadVersion != _imageUploadVersion)
+                return;
 
             if (!string.IsNullOrWhiteSpace(resultUrl))
             {
-                ImagePreview = resultUrl;
+                UploadedImageUrl = resultUrl;
             }
             else
             {
@@ -195,10 +226,24 @@
         }
         catch (Exception ex)
         {
-            UploadErrorMessage = "Fejl under upload: " + ex.Message;
+            if (uploadVersion == _imageUploadVersion)
+                UploadErrorMessage = "Fejl under upload: " + ex.Message;
+        }
+        finally
+        {
+            if (uploadVersion == _imageUploadVersion)
+                IsUploadingImage = false;
         }
 
         await InvokeAsync(StateHasChanged);
+    }
+
+    private static async Task<string> CreatePreviewDataUrlAsync(IBrowserFile file)
+    {
+        await using var stream = file.OpenReadStream(Math.Max(file.Size, MaxPreviewBytes));
+        using var buffer = new MemoryStream();
+        await stream.CopyToAsync(buffer);
+        return $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}";
     }
 
     // =========================
@@ -214,6 +259,12 @@
         if (user is null)
         {
             ValidationErrorMessage = "Du skal være logget ind for at oprette highlights.";
+            return;
+        }
+
+        if (IsUploadingImage)
+        {
+            ValidationErrorMessage = "Vent et øjeblik, billedet uploader stadig.";
             return;
         }
 
@@ -238,8 +289,8 @@
             HighlightToEdit.IsPrivate = IsPrivate;
 
             // Kun opdatér ImageUrl hvis vi faktisk har en URL (enten eksisterende eller ny upload)
-            if (!string.IsNullOrWhiteSpace(ImagePreview))
-                HighlightToEdit.ImageUrl = ImagePreview;
+            if (!string.IsNullOrWhiteSpace(UploadedImageUrl))
+                HighlightToEdit.ImageUrl = UploadedImageUrl;
 
             await HighlightService.Update(HighlightToEdit);
         }
@@ -251,7 +302,7 @@
                 Title = Title,
                 Description = Description,
                 UserId = user.Id,
-                ImageUrl = ImagePreview,     // må gerne være null
+                ImageUrl = UploadedImageUrl, // må gerne være null
                 Date = DateTime.UtcNow,      // backend sætter også Date i repo (bevarer adfærd)
                 IsPrivate = IsPrivate
             };

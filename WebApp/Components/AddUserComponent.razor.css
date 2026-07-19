@@ -73,6 +73,13 @@
     margin-bottom: 1rem;
 }
 
+.upload-status {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
 /* --- Modal: knapper --- */
 .modal-actions {
     display: flex;
@@ -89,6 +96,11 @@
     border: none;
     cursor: pointer;
     transition: background-color 0.2s ease;
+}
+
+.modal-btn:disabled {
+    cursor: wait;
+    opacity: 0.65;
 }
 
 .modal-btn.primary {
