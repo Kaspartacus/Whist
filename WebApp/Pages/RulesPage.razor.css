@@ -19,22 +19,24 @@
 
 /* --- Primær knap (genbruges i projektet) --- */
 .btn-add {
-    background-color: #6366F1;
+    background-color: var(--color-primary);
     color: white;
     border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    font-weight: bold;
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-md);
+    font-weight: 700;
     cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .btn-add:hover {
-    background-color: #4829a5;
+    background-color: var(--color-primary-hover);
+    transform: translateY(-1px);
 }
 
 .btn-add:focus-visible {
-    outline: 2px solid rgba(99, 102, 241, 0.45);
-    outline-offset: 2px;
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 /* --- Liste --- */
@@ -65,7 +67,7 @@
 }
 
 .rule-badge {
-    background-color: #2f2fcf;
+    background-color: var(--color-primary);
     color: white;
     font-weight: bold;
     border-radius: 50%;
@@ -81,7 +83,7 @@
 
 .rule-text {
     font-size: 1rem;
-    color: #333;
+    color: var(--color-text);
     max-width: 100%;
     word-break: break-word;
     white-space: pre-line;
@@ -106,7 +108,7 @@
 }
 
 .icon-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: var(--color-surface-muted);
 }
 
 .icon-button:focus-visible {
@@ -114,8 +116,8 @@
     outline-offset: 2px;
 }
 
-.icon-button.blue { color: #4a4ae6; }
-.icon-button.red  { color: #e53935; }
+.icon-button.blue { color: var(--color-primary); }
+.icon-button.red  { color: var(--color-danger); }
 
 /* --- Mobil --- */
 @media (max-width: 768px) {

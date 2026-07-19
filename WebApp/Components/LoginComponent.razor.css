@@ -2,7 +2,7 @@
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: rgba(15, 23, 42, 0.35);
     backdrop-filter: blur(4px);
     display: flex;
     justify-content: center;
@@ -11,12 +11,12 @@
 }
 
 .modal-box {
-    background-color: #fff;
+    background-color: var(--color-surface);
     padding: 2rem;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     width: 100%;
     max-width: 420px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-modal);
     animation: fadeIn 0.25s ease-in-out;
     text-align: center;
 }
@@ -25,24 +25,25 @@
     margin-bottom: 1.25rem;
     font-size: 1.3rem;
     font-weight: 600;
-    color: #333;
+    color: var(--color-text);
 }
 
 .modal-box input {
     width: 100%;
     margin-bottom: 1rem;
     padding: 0.6rem 0.8rem;
-    border-radius: 8px;
-    border: 1px solid #ccc;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border-strong);
     font-size: 1rem;
-    background-color: #fafafa;
+    background-color: var(--color-surface-muted);
     transition: border-color 0.2s ease;
 }
 
 .modal-box input:focus {
     outline: none;
-    border-color: #6366F1;
-    background-color: #fff;
+    border-color: var(--color-primary);
+    background-color: var(--color-surface);
+    box-shadow: var(--focus-ring);
 }
 
 /* --------- Knapper --------- */
@@ -57,33 +58,33 @@
     padding: 0.6rem 1.2rem;
     font-size: 1rem;
     font-weight: 600;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     border: none;
     cursor: pointer;
     transition: background-color 0.2s ease;
 }
 
 .modal-actions button.primary {
-    background-color: #6366F1;
+    background-color: var(--color-primary);
     color: white;
 }
 
 .modal-actions button.primary:hover {
-    background-color: #4829a5;
+    background-color: var(--color-primary-hover);
 }
 
 .modal-actions button.secondary {
-    background-color: #f3f3f3;
-    color: #333;
+    background-color: var(--color-surface-muted);
+    color: var(--color-text);
 }
 
 .modal-actions button.secondary:hover {
-    background-color: #e0e0e0;
+    background-color: var(--color-border);
 }
 
 /* --------- Fejlbesked --------- */
 .error-message {
-    color: #e53935;
+    color: var(--color-danger);
     font-size: 0.95rem;
     margin-top: 1rem;
 }

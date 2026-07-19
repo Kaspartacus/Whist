@@ -7,7 +7,7 @@
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: rgba(15, 23, 42, 0.35);
     backdrop-filter: blur(4px);
     display: flex;
     justify-content: center;
@@ -20,19 +20,19 @@
 
 /* --- Boksen i midten --- */
 .modal-box {
-    background-color: #fff;
+    background-color: var(--color-surface);
     padding: 2rem;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     width: 100%;
     max-width: 420px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-modal);
     text-align: center;
     animation: fadeIn 0.25s ease-in-out;
 }
 
 .modal-box p {
     font-size: 1.05rem;
-    color: #333;
+    color: var(--color-text);
     margin-bottom: 1.5rem;
     font-weight: 500;
 }
@@ -48,7 +48,7 @@
     padding: 0.6rem 1.2rem;
     font-size: 1rem;
     font-weight: 600;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     border: none;
     cursor: pointer;
     transition: background-color 0.2s ease;
@@ -56,16 +56,16 @@
 
 /* Confirm (Ja) */
 .modal-actions .confirm-btn {
-    background-color: #e53935;
+    background-color: var(--color-danger);
     color: white;
 }
 
 .modal-actions .confirm-btn:hover {
-    background-color: #cc2e2b;
+    background-color: var(--color-danger-hover);
 }
 
 .modal-actions .confirm-btn-green {
-    background-color: #2e7d32;
+    background-color: var(--color-success);
     color: white;
 }
 
@@ -75,28 +75,28 @@
 
 /* Cancel (Nej) */
 .modal-actions .cancel-btn {
-    background-color: #f3f3f3;
-    color: #333;
+    background-color: var(--color-surface-muted);
+    color: var(--color-text);
 }
 
 .modal-actions .cancel-btn:hover {
-    background-color: #e0e0e0;
+    background-color: var(--color-border);
 }
 
 .modal-actions .cancel-btn-red {
-    background-color: #e53935;
+    background-color: var(--color-danger);
     color: white;
 }
 
 .modal-actions .cancel-btn-red:hover {
-    background-color: #cc2e2b;
+    background-color: var(--color-danger-hover);
 }
 
 /* Lille hint til keyboard */
 .modal-hint {
     margin-top: 0.9rem;
     font-size: 0.85rem;
-    color: #666;
+    color: var(--color-text-muted);
 }
 
 /* --- Fade animation (valgfri) --- */

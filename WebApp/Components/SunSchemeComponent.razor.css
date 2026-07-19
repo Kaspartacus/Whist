@@ -46,3 +46,7 @@
 .clickable:hover {
     background-color: #ffcccc; /* lidt mørkere ved hover */
 }
+
+.disabled {
+    cursor: default;
+}
