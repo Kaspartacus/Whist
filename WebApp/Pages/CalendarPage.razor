@@ -3,9 +3,11 @@
 @using Core
 @using WebApp.Components
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
 
 @inject Service.CalendarServices.ICalendarService CalendarService
 @inject Service.AuthServices.IAuthService AuthService
+@inject IJSRuntime JS
 
 <h2>Kalender</h2>
 
@@ -79,8 +81,14 @@
 <!-- Modal: tilføj/redigér note -->
 @if (ShowNoteModal && SelectedDate.HasValue && CurrentUser is not null)
 {
-    <div class="modal-backdrop" tabindex="0" @onkeydown="HandleKeyDown" @onclick="CloseModal">
-        <div class="modal-container" @onclick:stopPropagation="true">
+    <div class="modal-backdrop"
+         tabindex="0"
+         @onkeydown="HandleKeyDown"
+         @onmousedown="StartBackdropClick"
+         @onclick="CloseFromBackdrop">
+        <div class="modal-container"
+             @onmousedown:stopPropagation="true"
+             @onclick:stopPropagation="true">
             <h3 class="modal-title">
                 @SelectedDate.Value.ToString("d. MMMM yyyy", new CultureInfo("da-DK"))
             </h3>
@@ -248,6 +256,8 @@
     // Fokus-håndtering (så Enter virker direkte)
     private ElementReference ConfirmButtonRef;
     private bool _shouldFocusConfirmButton;
+    private bool _isScrollLocked;
+    private bool _backdropClickStarted;
 
     // ------------------------------------------------------------
     // Kalender data
@@ -378,15 +388,17 @@
         NewNote = EventDates.TryGetValue(date.Date, out var note) ? note : "";
         ShowNoteModal = true;
         _shouldFocusConfirmButton = true;
+        _ = LockModalScrollAsync();
 
     }
 
-    private void CloseModal()
+    private async Task CloseModal()
     {
         SelectedDate = null;
         NewNote = "";
         ShowNoteModal = false;
         ValidationErrorMessage = null;
+        await UnlockModalScrollAsync();
     }
 
     private async Task SaveNote()
@@ -428,7 +440,7 @@
         PastCurrentPage = NormalizePage(PastCurrentPage, PastTotalPages);
         UpcomingCurrentPage = NormalizePage(UpcomingCurrentPage, UpcomingTotalPages);
 
-        CloseModal();
+        await CloseModal();
     }
 
     private async Task PreviousMonth()
@@ -467,7 +479,7 @@
         currentYear = today.Year;
         currentMonth = today.Month;
 
-        CloseModal();
+        await CloseModal();
         await LoadEvents();
     }
 
@@ -500,7 +512,7 @@
 
         if (SelectedDate == dateToDelete)
         {
-            CloseModal();
+            await CloseModal();
         }
 
         await LoadEvents();
@@ -592,5 +604,32 @@
     // Actions
     // =========================
     private Task OnEnter() => SaveNote();
-    private Task OnEscape() { CloseModal(); return Task.CompletedTask; }
+    private Task OnEscape() => CloseModal();
+
+    private void StartBackdropClick()
+    {
+        _backdropClickStarted = true;
+    }
+
+    private async Task CloseFromBackdrop()
+    {
+        if (!_backdropClickStarted) return;
+
+        _backdropClickStarted = false;
+        await CloseModal();
+    }
+
+    private async Task LockModalScrollAsync()
+    {
+        if (_isScrollLocked) return;
+        _isScrollLocked = true;
+        try { await JS.InvokeVoidAsync("whistModalLock.lock"); } catch { }
+    }
+
+    private async Task UnlockModalScrollAsync()
+    {
+        if (!_isScrollLocked) return;
+        _isScrollLocked = false;
+        try { await JS.InvokeVoidAsync("whistModalLock.unlock"); } catch { }
+    }
 }

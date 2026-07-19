@@ -1,5 +1,8 @@
 @using Core
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 @* =========================================================
    SelectPlayersComponent
@@ -25,11 +28,14 @@
     <div class="modal-backdrop"
          tabindex="0"
          @onkeydown="HandleKeyDown"
-         @onclick="Close">
+         @onmousedown="StartBackdropClick"
+         @onclick="CloseFromBackdrop">
 
         @* Modal container:
            Indeholder titel, valg af vindere/tabere og actions *@
-        <div class="modal-container" @onclick:stopPropagation="true">
+        <div class="modal-container"
+             @onmousedown:stopPropagation="true"
+             @onclick:stopPropagation="true">
 
             @* Titel:
                - Sol-mode: “Sol-melding: X point”
@@ -163,6 +169,8 @@
     
     // Fokus-håndtering (så Enter virker direkte)
     private ElementReference ConfirmButtonRef;
+    private bool _isScrollLocked;
+    private bool _backdropClickStarted;
 
     // =========================
     // Model til UI-valg
@@ -244,6 +252,7 @@
         }
 
         // Hvis alt er ok, send tilbage til parent
+        await UnlockModalScrollAsync();
         await OnConfirm.InvokeAsync((winners, losers));
     }
 
@@ -252,7 +261,21 @@
     /// </summary>
     private async Task Close()
     {
+        await UnlockModalScrollAsync();
         await OnCancel.InvokeAsync();
+    }
+
+    private void StartBackdropClick()
+    {
+        _backdropClickStarted = true;
+    }
+
+    private async Task CloseFromBackdrop()
+    {
+        if (!_backdropClickStarted) return;
+
+        _backdropClickStarted = false;
+        await Close();
     }
 
     // =========================
@@ -396,6 +419,7 @@
     {
         if (firstRender)
         {
+            await LockModalScrollAsync();
             try { await ConfirmButtonRef.FocusAsync(); } catch { }
         }
     }
@@ -417,5 +441,24 @@
         {
             await Close();
         }
+    }
+
+    private async Task LockModalScrollAsync()
+    {
+        if (_isScrollLocked) return;
+        _isScrollLocked = true;
+        try { await JS.InvokeVoidAsync("whistModalLock.lock"); } catch { }
+    }
+
+    private async Task UnlockModalScrollAsync()
+    {
+        if (!_isScrollLocked) return;
+        _isScrollLocked = false;
+        try { await JS.InvokeVoidAsync("whistModalLock.unlock"); } catch { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await UnlockModalScrollAsync();
     }
 }

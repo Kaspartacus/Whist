@@ -2,10 +2,12 @@
 @using Core
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
 
 @inject Service.IUserService UserService
 @inject Service.AuthServices.IAuthService AuthService
 @inject Service.UploadServices.IUploadService UploadService
+@inject IJSRuntime JS
 
 @* =========================================================
    AddUserComponent
@@ -18,14 +20,17 @@
 @* Modal vises kun når showModal = true *@
 @if (showModal)
 {
-    @* Backdrop: klik udenfor lukker modal (samme UX som dine andre modals) *@
+    @* Backdrop: mørk/sløret baggrund *@
     <div class="modal-backdrop" 
          tabindex="0"
          @onkeydown="HandleKeyDown"
-         @onclick="Close">
+         @onmousedown="StartBackdropClick"
+         @onclick="CloseFromBackdrop">
 
         @* Modal container: stopPropagation gør at klik i boksen ikke lukker modal *@
-        <div class="modal-container" @onclick:stopPropagation="true">
+        <div class="modal-container"
+             @onmousedown:stopPropagation="true"
+             @onclick:stopPropagation="true">
 
             @* Titel afhænger af om vi opretter eller redigerer *@
             <h3 class="modal-title">@(UserToEdit is null ? "Opret ny bruger" : "Rediger bruger")</h3>
@@ -248,6 +253,8 @@
     // Fokus-håndtering (så Enter virker direkte)
     private ElementReference ConfirmButtonRef;
     private bool _shouldFocusConfirmButton;
+    private bool _isScrollLocked;
+    private bool _backdropClickStarted;
 
     // =========================
     // Callback til parent
@@ -327,6 +334,7 @@
         }
 
         showModal = true;
+        _ = LockModalScrollAsync();
         _shouldFocusConfirmButton = true;
         
         StateHasChanged(); // vigtigt når Show() kaldes udefra via @ref
@@ -336,9 +344,10 @@
     /// <summary>
     /// Lukker modal og rydder form-state.
     /// </summary>
-    private void Close()
+    private async Task Close()
     {
         showModal = false;
+        await UnlockModalScrollAsync();
 
         Name = NickName = Email = Password = ConfirmPassword = CurrentPassword = NewPassword = ConfirmNewPassword = Address = PhoneNumber = Description = FunFact = "";
         BirthDate = DateOnly.MaxValue;
@@ -567,7 +576,7 @@
         // Fortæl parent at listen skal reloades
         await OnUserAdded.InvokeAsync();
 
-        Close();
+        await Close();
     }
 
     private bool WantsToChangePassword =>
@@ -643,5 +652,32 @@
     // Actions
     // =========================
     private Task OnEnter() => CreateUser();
-    private Task OnEscape() { Close(); return Task.CompletedTask; }
+    private Task OnEscape() => Close();
+
+    private void StartBackdropClick()
+    {
+        _backdropClickStarted = true;
+    }
+
+    private async Task CloseFromBackdrop()
+    {
+        if (!_backdropClickStarted) return;
+
+        _backdropClickStarted = false;
+        await Close();
+    }
+
+    private async Task LockModalScrollAsync()
+    {
+        if (_isScrollLocked) return;
+        _isScrollLocked = true;
+        try { await JS.InvokeVoidAsync("whistModalLock.lock"); } catch { }
+    }
+
+    private async Task UnlockModalScrollAsync()
+    {
+        if (!_isScrollLocked) return;
+        _isScrollLocked = false;
+        try { await JS.InvokeVoidAsync("whistModalLock.unlock"); } catch { }
+    }
 }

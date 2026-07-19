@@ -1,19 +1,24 @@
 @using Core
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
 
 @inject Service.HighlightServices.IHighlightService HighlightService
 @inject Service.AuthServices.IAuthService AuthService
 @inject Service.UploadServices.IUploadService UploadService
+@inject IJSRuntime JS
 
 @if (showModal)
 {
     <div class="modal-backdrop" 
          tabindex="0"
          @onkeydown="HandleKeyDown"
-         @onclick="Close">
+         @onmousedown="StartBackdropClick"
+         @onclick="CloseFromBackdrop">
         @* Stop klik inde i modal fra at lukke den *@
-        <div class="modal-container" @onclick:stopPropagation="true">
+        <div class="modal-container"
+             @onmousedown:stopPropagation="true"
+             @onclick:stopPropagation="true">
             <h3 class="modal-title">
                 @(HighlightToEdit is null ? "Opret nyt highlight" : "Rediger highlight")
             </h3>
@@ -103,6 +108,8 @@
     // Fokus-håndtering (så Enter virker direkte)
     private ElementReference ConfirmButtonRef;
     private bool _shouldFocusConfirmButton;
+    private bool _isScrollLocked;
+    private bool _backdropClickStarted;
 
     // Validering
     private string? ValidationErrorMessage;
@@ -160,6 +167,7 @@
         }
 
         showModal = true;
+        _ = LockModalScrollAsync();
         _shouldFocusConfirmButton = true;
         
         StateHasChanged();
@@ -168,9 +176,10 @@
     /// <summary>
     /// Lukker modal og rydder felter.
     /// </summary>
-    private void Close()
+    private async Task Close()
     {
         showModal = false;
+        await UnlockModalScrollAsync();
 
         Title = "";
         Description = "";
@@ -313,7 +322,7 @@
         // Giv parent besked om at der er sket ændringer (reload liste)
         await OnHighlightAdded.InvokeAsync();
 
-        Close();
+        await Close();
     }
     
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -366,5 +375,32 @@
     // Actions
     // =========================
     private Task OnEnter() => SaveHighlightAsync();
-    private Task OnEscape() { Close(); return Task.CompletedTask; }
+    private Task OnEscape() => Close();
+
+    private void StartBackdropClick()
+    {
+        _backdropClickStarted = true;
+    }
+
+    private async Task CloseFromBackdrop()
+    {
+        if (!_backdropClickStarted) return;
+
+        _backdropClickStarted = false;
+        await Close();
+    }
+
+    private async Task LockModalScrollAsync()
+    {
+        if (_isScrollLocked) return;
+        _isScrollLocked = true;
+        try { await JS.InvokeVoidAsync("whistModalLock.lock"); } catch { }
+    }
+
+    private async Task UnlockModalScrollAsync()
+    {
+        if (!_isScrollLocked) return;
+        _isScrollLocked = false;
+        try { await JS.InvokeVoidAsync("whistModalLock.unlock"); } catch { }
+    }
 }

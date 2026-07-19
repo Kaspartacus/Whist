@@ -119,8 +119,12 @@
 <!-- Billede-modal -->
 @if (ExpandedImageUrl is not null)
 {
-    <div class="image-modal-backdrop" @onclick="CloseImageModal">
-        <div class="image-modal-content" @onclick:stopPropagation>
+    <div class="image-modal-backdrop"
+         @onmousedown="StartImageBackdropClick"
+         @onclick="CloseImageModalFromBackdrop">
+        <div class="image-modal-content"
+             @onmousedown:stopPropagation="true"
+             @onclick:stopPropagation>
             <button class="close-button" type="button" aria-label="Luk billede" @onclick="CloseImageModal">×</button>
             <img src="@ExpandedImageUrl" alt="Udvidet billede" />
         </div>
@@ -156,6 +160,8 @@
 
     // Modal (billede i stor størrelse)
     private string? ExpandedImageUrl;
+    private bool _isImageModalScrollLocked;
+    private bool _imageBackdropClickStarted;
 
     // Component refs
     private AddHighlightComponent? addComponent;
@@ -229,6 +235,7 @@
             // Siden kan være ved at lukke, hvor JS runtime ikke længere er tilgængelig.
         }
 
+        await UnlockImageModalScrollAsync();
         resizeReference?.Dispose();
     }
 
@@ -283,14 +290,43 @@
         HighlightToDelete = null;
     }
 
-    private void OpenImageModal(string url)
+    private async Task OpenImageModal(string url)
     {
         ExpandedImageUrl = url;
+        await LockImageModalScrollAsync();
     }
 
-    private void CloseImageModal()
+    private async Task CloseImageModal()
     {
         ExpandedImageUrl = null;
+        await UnlockImageModalScrollAsync();
+    }
+
+    private void StartImageBackdropClick()
+    {
+        _imageBackdropClickStarted = true;
+    }
+
+    private async Task CloseImageModalFromBackdrop()
+    {
+        if (!_imageBackdropClickStarted) return;
+
+        _imageBackdropClickStarted = false;
+        await CloseImageModal();
+    }
+
+    private async Task LockImageModalScrollAsync()
+    {
+        if (_isImageModalScrollLocked) return;
+        _isImageModalScrollLocked = true;
+        try { await JS.InvokeVoidAsync("whistModalLock.lock"); } catch { }
+    }
+
+    private async Task UnlockImageModalScrollAsync()
+    {
+        if (!_isImageModalScrollLocked) return;
+        _isImageModalScrollLocked = false;
+        try { await JS.InvokeVoidAsync("whistModalLock.unlock"); } catch { }
     }
 
     /// <summary>

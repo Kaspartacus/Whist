@@ -7,6 +7,9 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 1.25rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     z-index: 9999;
 }
 
@@ -14,8 +17,10 @@
     background-color: var(--color-surface);
     padding: 2rem;
     border-radius: var(--radius-lg);
-    width: 100%;
-    max-width: 420px;
+    width: min(100%, 440px);
+    max-height: calc(100vh - 2.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     box-shadow: var(--shadow-modal);
     animation: fadeIn 0.25s ease-in-out;
     text-align: center;
