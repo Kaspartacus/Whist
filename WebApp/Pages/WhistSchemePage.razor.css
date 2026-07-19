@@ -307,7 +307,53 @@ h3.whist-point-title {
 @media (max-width: 768px) {
     .point-table {
         width: 100%;
-        font-size: 10px;
+        font-size: 0.78rem;
+    }
+
+    .point-table th,
+    .point-table td {
+        width: 2.15rem;
+        min-width: 2.15rem;
+        height: 2rem;
+        padding: 0.18rem;
+        border-width: 1px;
+        line-height: 1.1;
+    }
+
+    .point-table thead th:first-child,
+    .point-table tbody th:first-child {
+        position: sticky;
+        left: 0;
+        width: 4.9rem;
+        min-width: 4.9rem;
+        box-shadow: 2px 0 0 black;
+        z-index: 2;
+    }
+
+    .point-table thead th:first-child {
+        background-color: var(--color-surface-muted);
+        z-index: 3;
+    }
+
+    .point-table tbody tr:hover th,
+    .point-table tbody tr:hover td {
+        box-shadow:
+            inset 0 2px 0 rgba(17, 24, 39, 0.55),
+            inset 0 -2px 0 rgba(17, 24, 39, 0.55);
+    }
+
+    .point-table tbody tr:hover th:first-child {
+        box-shadow:
+            inset 4px 0 0 var(--color-primary),
+            inset 0 2px 0 rgba(17, 24, 39, 0.55),
+            inset 0 -2px 0 rgba(17, 24, 39, 0.55),
+            2px 0 0 black;
+    }
+
+    .point-table td:not(.cell-empty):not(.disabled):active {
+        outline: 2px solid var(--color-primary);
+        outline-offset: -2px;
+        filter: brightness(1.08);
     }
 
     .below-tables-container {
@@ -339,11 +385,28 @@ h3.whist-point-title {
         width: 100%;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+        padding-bottom: 0.35rem;
+        border-radius: var(--radius-sm);
+        overscroll-behavior-x: contain;
+        scrollbar-color: var(--color-border-strong) transparent;
     }
 
     /* Lad tabellen være så bred som den skal (så den kan scrolle) */
     .table-scroll > table {
         width: max-content;
         min-width: 100%;
+    }
+
+    .table-scroll::-webkit-scrollbar {
+        height: 0.55rem;
+    }
+
+    .table-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .table-scroll::-webkit-scrollbar-thumb {
+        background-color: var(--color-border-strong);
+        border-radius: 999px;
     }
 }
