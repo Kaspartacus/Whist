@@ -10,17 +10,19 @@
 
 /* Tilføj bøde knap */
 .btn-add {
-    background-color: #6366F1;
+    background-color: var(--color-primary);
     color: white;
     border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    font-weight: bold;
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-md);
+    font-weight: 700;
     cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .btn-add:hover {
-    background-color: #4829a5;
+    background-color: var(--color-primary-hover);
+    transform: translateY(-1px);
 }
 
 /* =========================
@@ -34,10 +36,11 @@
 }
 
 .user-card {
-    background-color: #ffffff;
-    border-radius: 12px;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
     padding: 1.2rem;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -50,7 +53,7 @@
     font-weight: 700;
     font-size: 1.1rem;
     margin-bottom: 0.8rem;
-    color: #333;
+    color: var(--color-text);
 }
 
 .user-info {
@@ -59,7 +62,7 @@
     row-gap: 0.4rem;
     column-gap: 0.5rem;
     font-size: 0.95rem;
-    color: #444;
+    color: var(--color-text-muted);
 }
 
 .amount {
@@ -67,18 +70,18 @@
 }
 
 .text-red {
-    color: #e53935;
+    color: var(--color-danger);
 }
 
 .text-green {
-    color: #4caf50;
+    color: var(--color-success);
 }
 
 /* Betal nu knap */
 .pay-button {
     margin-top: 1rem;
     padding: 0.6rem;
-    background-color: #fca311;
+    background-color: var(--color-warning);
     color: white;
     border: none;
     border-radius: 6px;
@@ -112,7 +115,7 @@
     position: absolute;
     top: -0.5rem;
     right: -0.6rem;
-    background-color: #6366F1;
+    background-color: var(--color-primary);
     color: white;
     border-radius: 50%;
     font-size: 0.7rem;
@@ -123,11 +126,12 @@
    Oversigt strip (KPI + stjerner)
    ========================= */
 .overview-box {
-    background-color: #fff;
+    background-color: var(--color-surface);
     padding: 1.2rem;
-    border-radius: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
     margin-bottom: 2rem;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--shadow-sm);
 }
 
 .overview-title {
@@ -151,8 +155,8 @@
 }
 
 .kpi {
-    border: 1px solid rgba(0,0,0,0.06);
-    border-radius: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
     padding: 1rem 1.25rem;
     min-width: 220px;
 }
@@ -202,7 +206,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: #333;
+    color: var(--color-text);
 }
 
 .star-track {
@@ -215,13 +219,13 @@
 .star-fill {
     height: 100%;
     border-radius: 999px;
-    background: #6366F1;
+    background: var(--color-primary);
 }
 
 .star-value {
     text-align: right;
     font-weight: 700;
-    color: #333;
+    color: var(--color-text);
 }
 
 .fine-comment-cell {
@@ -234,9 +238,9 @@
    Filter UI
    ========================= */
 .filter-box-wrapper {
-    background-color: #f3f4f6;
+    background-color: var(--color-surface-muted);
     padding: 1rem;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-lg);
     margin-bottom: 2rem;
 }
 
@@ -250,9 +254,10 @@
 .filter-item {
     display: flex;
     align-items: center;
-    background-color: white;
+    background-color: var(--color-surface);
+    border: 1px solid transparent;
     padding: 0.5rem 0.75rem;
-    border-radius: 0.5rem;
+    border-radius: var(--radius-md);
     gap: 0.5rem;
     width: 100%;
     box-sizing: border-box;
@@ -264,6 +269,7 @@
     width: 100%;
     font-size: 1rem;
     background-color: transparent;
+    color: var(--color-text);
 }
 
 .filter-item.dropdown {
@@ -282,8 +288,8 @@
 .filter-select {
     flex: 1;
     padding: 0.1rem 0.75rem;
-    border: 0.5px solid #ccc;
-    border-radius: 8px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
     font-size: 1rem;
     background-color: #fff;
     appearance: none;
@@ -296,7 +302,8 @@
 
 .filter-select:focus {
     outline: none;
-    border-color: #888;
+    border-color: var(--color-primary);
+    box-shadow: var(--focus-ring);
 }
 
 .icon-search,
@@ -311,10 +318,11 @@
    ========================= */
 .fine-table {
     overflow-x: auto;
-    background-color: #fff;
+    background-color: var(--color-surface);
     padding: 1rem;
-    border-radius: 12px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
     max-width: 100%;
     max-height: fit-content;
 }
@@ -333,7 +341,7 @@
 
 .fine-table th {
     font-weight: 600;
-    color: #555;
+    color: var(--color-text-muted);
 }
 
 .fine-table td:last-child {
@@ -371,11 +379,11 @@
 }
 
 .icon-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: var(--color-surface-muted);
 }
 
-.icon-button.blue { color: #4a4ae6; }
-.icon-button.red  { color: #e53935; }
+.icon-button.blue { color: var(--color-primary); }
+.icon-button.red  { color: var(--color-danger); }
 
 /* =========================
    Mobilvenlig

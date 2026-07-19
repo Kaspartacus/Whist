@@ -9,41 +9,40 @@
 
 <h2>Kalender</h2>
 
-<!-- Månedsskift -->
-<div class="calendar-controls">
-    <button class="btn-add" @onclick="PreviousMonth">←</button>
-    <div class="calendar-current">@CurrentMonthName @CurrentYear</div>
-    <button class="btn-add" @onclick="NextMonth">→</button>
-</div>
+<!-- Månedsskift + dato-navigation -->
+<section class="calendar-toolbar" aria-label="Kalender navigation">
+    <div class="calendar-panel">
+        <div class="calendar-controls">
+            <button class="btn-add" type="button" aria-label="Forrige måned" @onclick="PreviousMonth">←</button>
+            <div class="calendar-current">@CurrentMonthName @CurrentYear</div>
+            <button class="btn-add" type="button" aria-label="Næste måned" @onclick="NextMonth">→</button>
+        </div>
 
-<!-- År/måned dropdowns -->
-<div class="calendar-filters-styled">
-    <div class="filter-item dropdown">
-        <label class="filter-label">Vælg år:</label>
-        <div class="filter-select-wrapper">
-            <span class="icon-calendar">📅</span>
-            <select @bind="CurrentYear">
-                @foreach (var year in YearRange)
-                {
-                    <option value="@year">@year</option>
-                }
-            </select>
+        <div class="calendar-actions">
+            <label class="calendar-picker">
+                <span>År</span>
+                <select @bind="CurrentYear">
+                    @foreach (var year in YearRange)
+                    {
+                        <option value="@year">@year</option>
+                    }
+                </select>
+            </label>
+
+            <button class="btn-today" type="button" @onclick="GoToToday">I dag</button>
+
+            <label class="calendar-picker">
+                <span>Måned</span>
+                <select @bind="CurrentMonth">
+                    @for (int m = 1; m <= 12; m++)
+                    {
+                        <option value="@m">@CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
+                    }
+                </select>
+            </label>
         </div>
     </div>
-
-    <div class="filter-item dropdown">
-        <label class="filter-label">Vælg måned:</label>
-        <div class="filter-select-wrapper">
-            <span class="icon-calendar">📅</span>
-            <select @bind="CurrentMonth">
-                @for (int m = 1; m <= 12; m++)
-                {
-                    <option value="@m">@CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
-                }
-            </select>
-        </div>
-    </div>
-</div>
+</section>
 
 <!-- Kalender grid -->
 <div class="calendar-grid"
@@ -64,6 +63,7 @@
         var date = new DateTime(CurrentYear, CurrentMonth, day);
         var isToday = date.Date == DateTime.Today;
         var cellClass = isToday ? "day-cell today" : "day-cell";
+        cellClass += CurrentUser is not null ? " interactive" : " readonly";
 
         <div class="@cellClass" @onclick="() => SelectDate(date)">
             <div class="day-number">@day</div>
@@ -458,6 +458,16 @@
             CurrentMonth++;
         }
 
+        await LoadEvents();
+    }
+
+    private async Task GoToToday()
+    {
+        var today = DateTime.Today;
+        currentYear = today.Year;
+        currentMonth = today.Month;
+
+        CloseModal();
         await LoadEvents();
     }
 
